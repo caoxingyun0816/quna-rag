@@ -1,0 +1,45 @@
+# 基础配置
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:3306/rag_enterprise?useSSL=false&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 200MB
+
+# MyBatis配置
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.rag.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+milvus:
+  host: ${MILVUS_HOST:127.0.0.1}
+  port: ${MILVUS_PORT:19530}
+  collection: ${MILVUS_COLLECTION:enterprise_kb}
+  dim: ${MILVUS_DIM:1536}
+
+llm:
+  api-key: ${LLM_API_KEY:}
+  embedding-url: ${LLM_EMBEDDING_URL:https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding/text-embedding}
+  embedding-model: ${LLM_EMBEDDING_MODEL:text-embedding-v2}
+
+jwt:
+  secret: ${JWT_SECRET:change-me-in-production}
+  expire: ${JWT_EXPIRE:86400000}
+
+dingtalk:
+  app-key: ${DINGTALK_APP_KEY:}
+  app-secret: ${DINGTALK_APP_SECRET:}
+  kb-space-id: ${DINGTALK_KB_SPACE_ID:}
+  operatorId: ${DINGTALK_OPERATOR_ID:}

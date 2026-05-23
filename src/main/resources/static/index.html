@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>趣拿AI自动化平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+        body{background:#eef1f4;color:#1f2933}
+        button,input,select{font:inherit}
+        button{border:none;cursor:pointer}
+        .login-page{min-height:100vh;display:grid;place-items:center;background:#e9edf2}
+        .login-panel{width:390px;background:#fff;border:1px solid #dfe5ec;border-radius:6px;padding:34px;box-shadow:0 18px 45px rgba(36,48,63,.08)}
+        .login-title{font-size:22px;font-weight:700;color:#17212f;margin-bottom:4px}
+        .login-subtitle{font-size:13px;color:#73808f;margin-bottom:26px}
+        .form-label{display:block;font-size:13px;color:#4b5563;margin:16px 0 8px}
+        .form-input,.form-select{width:100%;height:38px;border:1px solid #cfd7e2;border-radius:4px;background:#fff;padding:0 11px;color:#1f2933;outline:none}
+        .form-input:focus,.form-select:focus{border-color:#2f6f68;box-shadow:0 0 0 3px rgba(47,111,104,.12)}
+        .captcha-box{position:relative;width:100%;height:40px;background:#f6f8fa;border:1px solid #cfd7e2;border-radius:4px;margin-top:16px;overflow:hidden;user-select:none}
+        .captcha-text{position:absolute;inset:0;display:grid;place-items:center;color:#73808f;font-size:13px;pointer-events:none}
+        .captcha-slider{position:absolute;top:0;left:0;width:42px;height:100%;display:grid;place-items:center;background:#2f6f68;color:#fff;font-weight:700;transition:left .18s}
+        .captcha-slider.verified{background:#426b48;opacity:.8}
+        .primary-btn{height:38px;padding:0 18px;border-radius:4px;background:#2f6f68;color:#fff}
+        .primary-btn:hover{background:#285f59}
+        .primary-btn:disabled{background:#9aa7b4;cursor:not-allowed}
+        .secondary-btn{height:38px;padding:0 16px;border-radius:4px;background:#fff;color:#374151;border:1px solid #cfd7e2}
+        .secondary-btn:hover{background:#f6f8fa}
+        .ghost-btn{height:32px;padding:0 10px;border-radius:4px;background:transparent;color:#2f6f68}
+        .danger-text{color:#b45309}
+        .login-submit{width:100%;margin-top:18px}
+        .login-switch{text-align:center;margin-top:16px;font-size:13px;color:#73808f}
+        .login-switch a{color:#2f6f68;cursor:pointer;text-decoration:none;margin-left:8px}
+
+        .shell{min-height:100vh;display:grid;grid-template-columns:248px 1fr}
+        .nav{background:#ffffff;border-right:1px solid #dfe5ec;padding:22px 16px}
+        .brand{height:54px;display:flex;align-items:center;border-bottom:1px solid #edf1f5;margin-bottom:16px}
+        .brand-mark{width:30px;height:30px;border-radius:4px;background:#2f6f68;margin-right:10px;position:relative}
+        .brand-mark:after{content:"";position:absolute;left:8px;right:8px;top:8px;bottom:8px;border:2px solid #fff;border-radius:2px}
+        .brand-name{font-weight:700;color:#17212f;line-height:1.25}
+        .brand-name span{display:block;font-size:12px;color:#7b8794;font-weight:500;margin-top:2px}
+        .menu{display:flex;flex-direction:column;gap:4px}
+        .menu-item{height:42px;display:flex;align-items:center;padding:0 12px;border-radius:4px;color:#465362;text-decoration:none;font-size:14px}
+        .menu-item:hover{background:#f2f5f7}
+        .menu-item.active{background:#e6efed;color:#245a53;font-weight:700}
+        .menu-code{width:32px;color:#7b8794;font-size:12px;font-weight:700}
+        .menu-group{margin-bottom:4px}
+        .menu-sub{margin-left:18px;padding-left:12px;border-left:1px solid #d7dee8;display:flex;flex-direction:column;gap:3px}
+        .menu-sub .menu-item{height:34px;font-size:13px}
+        .menu-caret{width:18px;color:#7b8794}
+
+        .workspace{min-width:0;display:flex;flex-direction:column}
+        .topbar{height:64px;background:#fff;border-bottom:1px solid #dfe5ec;display:flex;align-items:center;justify-content:space-between;padding:0 28px}
+        .page-title{font-size:20px;font-weight:700;color:#17212f}
+        .page-meta{font-size:13px;color:#7b8794;margin-top:3px}
+        .user-chip{height:34px;padding:0 12px;border:1px solid #dfe5ec;border-radius:17px;display:flex;align-items:center;gap:8px;color:#4b5563;background:#fff}
+        .avatar{width:22px;height:22px;border-radius:50%;background:#d8e4e1;color:#245a53;display:grid;place-items:center;font-size:12px;font-weight:700}
+        .content{padding:24px 28px 36px;overflow:auto}
+        .panel{background:#fff;border:1px solid #dfe5ec;border-radius:6px;margin-bottom:16px}
+        .panel-head{min-height:52px;padding:0 18px;border-bottom:1px solid #edf1f5;display:flex;align-items:center;justify-content:space-between;gap:12px}
+        .panel-title{font-size:15px;font-weight:700;color:#17212f}
+        .panel-body{padding:18px}
+        .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+        .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+        .query-grid{display:grid;grid-template-columns:1.5fr 180px 180px auto;gap:12px;align-items:end}
+        .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+        .form-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+        .textarea{width:100%;min-height:110px;border:1px solid #cfd7e2;border-radius:4px;background:#fff;padding:10px 11px;color:#1f2933;outline:none;resize:vertical;line-height:1.6}
+        .textarea:focus{border-color:#2f6f68;box-shadow:0 0 0 3px rgba(47,111,104,.12)}
+        .hint{font-size:12px;color:#7b8794;line-height:1.6}
+        .result-list{display:flex;flex-direction:column;gap:10px}
+        .result-item{border:1px solid #e3e8ef;border-radius:6px;padding:12px;background:#fbfcfd}
+        .result-title{font-size:13px;font-weight:700;color:#17212f;margin-bottom:6px}
+        .result-content{font-size:13px;color:#4b5563;line-height:1.7;white-space:pre-wrap}
+        .field-name{font-size:12px;color:#6b7280;margin-bottom:7px}
+        .table-wrap{overflow:auto;border:1px solid #e3e8ef;border-radius:4px}
+        table{width:100%;border-collapse:collapse;background:#fff;font-size:14px}
+        th{height:42px;text-align:left;background:#f7f9fb;color:#5b6775;font-weight:700;border-bottom:1px solid #e3e8ef;padding:0 14px;white-space:nowrap}
+        td{height:48px;border-bottom:1px solid #edf1f5;padding:0 14px;color:#27313f;white-space:nowrap}
+        tr:last-child td{border-bottom:none}
+        .status{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:12px;font-size:12px;background:#edf7f4;color:#28665e}
+        .status.pending{background:#f8f1e8;color:#9a5b10}
+        .status.idle{background:#eef2f6;color:#64748b}
+        .empty{padding:42px;text-align:center;color:#7b8794}
+
+        .split{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px}
+        .chat-panel{height:calc(100vh - 152px);min-height:540px;display:flex;flex-direction:column}
+        .chat-list{flex:1;overflow:auto;padding:18px;background:#fbfcfd}
+        .message-row{display:flex;margin-bottom:14px}
+        .message-row.user{justify-content:flex-end}
+        .message{max-width:74%;border:1px solid #dfe5ec;border-radius:6px;padding:12px 14px;line-height:1.65;background:#fff}
+        .message-row.user .message{background:#e9f1ef;border-color:#d4e3df}
+        .message.streaming:after{content:"";display:inline-block;width:7px;height:16px;margin-left:4px;background:#2f6f68;vertical-align:-3px;animation:blink 1s infinite}
+        @keyframes blink{0%,45%{opacity:1}46%,100%{opacity:.15}}
+        .message h1,.message h2,.message h3{font-size:16px;margin:10px 0 6px}
+        .message p{margin:6px 0}
+        .message ul,.message ol{padding-left:22px}
+        .message code{background:#eef2f6;border-radius:3px;padding:1px 5px}
+        .input-strip{border-top:1px solid #dfe5ec;padding:14px;display:flex;gap:10px;background:#fff}
+        .input-strip input{flex:1;height:40px;border:1px solid #cfd7e2;border-radius:4px;padding:0 12px;outline:none}
+        .side-card{background:#fff;border:1px solid #dfe5ec;border-radius:6px}
+        .side-card+.side-card{margin-top:16px}
+        .metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+        .metric{background:#fff;border:1px solid #dfe5ec;border-radius:6px;padding:16px}
+        .metric-num{font-size:24px;font-weight:800;color:#17212f}
+        .metric-label{font-size:13px;color:#7b8794;margin-top:4px}
+
+        .drawer-mask{position:fixed;inset:0;background:rgba(15,23,42,.28);display:flex;justify-content:flex-end;z-index:50}
+        .drawer{width:min(720px,92vw);height:100%;background:#fff;box-shadow:-18px 0 45px rgba(15,23,42,.18);display:flex;flex-direction:column}
+        .drawer-head{height:62px;border-bottom:1px solid #dfe5ec;padding:0 20px;display:flex;align-items:center;justify-content:space-between}
+        .drawer-title{font-size:17px;font-weight:700;color:#17212f}
+        .drawer-body{padding:20px;overflow:auto;flex:1}
+        .close-btn{width:32px;height:32px;border-radius:4px;background:#f2f5f7;color:#4b5563}
+        .file-row{display:flex;gap:10px;align-items:center}
+        .file-input{flex:1;height:38px;border:1px solid #cfd7e2;border-radius:4px;padding:7px;background:#fff}
+        .tree-box{border:1px solid #dfe5ec;border-radius:4px;min-height:340px;max-height:480px;overflow:auto;padding:10px;background:#fbfcfd}
+        .tree-line{display:flex;align-items:center;gap:8px;min-height:34px;padding:4px 6px;border-radius:4px;cursor:pointer}
+        .tree-line:hover{background:#edf1f5}
+        .tree-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .tree-type{width:52px;color:#7b8794;font-size:12px}
+        .tree-children{padding-left:24px}
+        .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.58);display:grid;place-items:center;z-index:80}
+        .loading-spinner{width:42px;height:42px;border:4px solid #dfe5ec;border-top-color:#2f6f68;border-radius:50%;animation:spin .8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @media (max-width:980px){
+            .shell{grid-template-columns:1fr}
+            .nav{border-right:none;border-bottom:1px solid #dfe5ec}
+            .menu{display:grid;grid-template-columns:repeat(2,1fr)}
+            .menu-sub{grid-column:1/-1}
+            .split,.query-grid,.form-grid,.form-grid.three{grid-template-columns:1fr}
+            .chat-panel{height:auto;min-height:520px}
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="login-page" v-if="!token">
+        <div class="login-panel">
+            <div class="login-title">趣拿AI自动化平台</div>
+            <div class="login-subtitle">{{isRegister ? '创建平台账号' : '账号登录'}}</div>
+
+            <label class="form-label">账号</label>
+            <input class="form-input" v-model="form.username" placeholder="请输入账号">
+            <label class="form-label">密码</label>
+            <input class="form-input" v-model="form.password" :placeholder="isRegister ? '请输入密码' : '请输入密码'" type="password">
+            <template v-if="isRegister">
+                <label class="form-label">确认密码</label>
+                <input class="form-input" v-model="form.confirmPassword" placeholder="请再次输入密码" type="password">
+            </template>
+
+            <div class="captcha-box" @mousedown="onCaptchaStart">
+                <span class="captcha-text">{{captchaText}}</span>
+                <div class="captcha-slider" :style="{left: captchaX + 'px'}" :class="{'verified': captchaVerified}">›</div>
+            </div>
+
+            <button class="primary-btn login-submit" @click="handleSubmit" :disabled="!captchaVerified">
+                {{isRegister ? '注册' : '登录'}}
+            </button>
+
+            <div class="login-switch">
+                {{isRegister ? '已有账号？' : '没有账号？'}}
+                <a @click="toggleMode">{{isRegister ? '立即登录' : '立即注册'}}</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="shell" v-else>
+        <aside class="nav">
+            <div class="brand">
+                <div class="brand-mark"></div>
+                <div class="brand-name">趣拿AI自动化平台<span>Operations Console</span></div>
+            </div>
+            <nav class="menu">
+                <div v-for="item in menus" :key="item.key" class="menu-group">
+                    <a class="menu-item"
+                       :class="{active: tab===item.key && !item.children}"
+                       href="javascript:void(0)"
+                       @click="switchTab(item)">
+                        <span class="menu-code">{{item.code}}</span>
+                        <span class="menu-caret" v-if="item.children">{{item.expanded ? '⌄' : '›'}}</span>
+                        <span>{{item.name}}</span>
+                    </a>
+                    <div class="menu-sub" v-if="item.children && item.expanded">
+                        <a v-for="child in item.children"
+                           :key="child.key"
+                           class="menu-item"
+                           :class="{active: tab===child.key}"
+                           href="javascript:void(0)"
+                           @click="switchTab(child)">
+                            <span>{{child.name}}</span>
+                        </a>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <section class="workspace">
+            <header class="topbar">
+                <div>
+                    <div class="page-title">{{activeMenu.name}}</div>
+                    <div class="page-meta">{{activeMenu.path}}</div>
+                </div>
+                <div class="user-chip">
+                    <span class="avatar">{{userInitial}}</span>
+                    <span>{{form.username || '当前用户'}}</span>
+                </div>
+            </header>
+
+            <main class="content">
+                <div class="loading-overlay" v-if="loading">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <section v-show="tab==='doc-kb' || tab==='documents'">
+                    <div class="metric-grid" style="margin-bottom:16px">
+                        <div class="metric">
+                            <div class="metric-num">{{filteredDocs.length}}</div>
+                            <div class="metric-label">文档数量</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-num">{{docList.filter(item => item.source === '钉钉').length}}</div>
+                            <div class="metric-label">钉钉来源</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-num">{{selectedDocIds.length}}</div>
+                            <div class="metric-label">待同步选择</div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">文档查询</div>
+                            <div class="actions">
+                                <button class="secondary-btn" @click="resetDocQuery">重置</button>
+                                <button class="primary-btn" @click="applyDocQuery">查询</button>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="query-grid">
+                                <div>
+                                    <div class="field-name">文档名称</div>
+                                    <input class="form-input" v-model="docQuery.keyword" placeholder="请输入文档名称">
+                                </div>
+                                <div>
+                                    <div class="field-name">来源</div>
+                                    <select class="form-select" v-model="docQuery.source">
+                                        <option value="">全部</option>
+                                        <option value="本地上传">本地上传</option>
+                                        <option value="钉钉">钉钉</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <div class="field-name">状态</div>
+                                    <select class="form-select" v-model="docQuery.status">
+                                        <option value="">全部</option>
+                                        <option value="已入库">已入库</option>
+                                        <option value="同步中">同步中</option>
+                                        <option value="待处理">待处理</option>
+                                    </select>
+                                </div>
+                                <div class="actions">
+                                    <button class="primary-btn" @click="showUploadPanel=true">文档上传</button>
+                                    <button class="secondary-btn" @click="openDingTalkPanel">钉钉文档同步</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">文档列表</div>
+                            <div class="page-meta">共 {{filteredDocs.length}} 条</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                    <tr>
+                                        <th>文档名称</th>
+                                        <th>来源</th>
+                                        <th>类型</th>
+                                        <th>切片数</th>
+                                        <th>权限</th>
+                                        <th>状态</th>
+                                        <th>更新时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody v-if="filteredDocs.length">
+                                    <tr v-for="doc in filteredDocs" :key="doc.id">
+                                        <td>{{doc.name}}</td>
+                                        <td>{{doc.source}}</td>
+                                        <td>{{doc.fileType}}</td>
+                                        <td>{{doc.chunkCount}}</td>
+                                        <td>{{doc.permissionScope}}</td>
+                                        <td><span class="status" :class="{pending: doc.status==='同步中', idle: doc.status==='待处理'}">{{doc.status}}</span></td>
+                                        <td>{{doc.updateTime}}</td>
+                                        <td>
+                                            <button class="ghost-btn" @click="openDocDetail(doc)">详情</button>
+                                            <button class="ghost-btn" @click="goSearchWithDoc(doc)">检索测试</button>
+                                            <button class="ghost-btn" @click="markDocStatus(doc, doc.status==='停用' ? '已入库' : '停用')">{{doc.status==='停用' ? '启用' : '停用'}}</button>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                                <div class="empty" v-if="!filteredDocs.length">暂无文档数据</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section v-show="tab==='doc-upload'">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">本地文档上传</div>
+                            <div class="hint">支持 PDF、DOCX、TXT、MD 等格式，上传后自动切片并入库</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="file-row">
+                                <input class="file-input" type="file" id="file">
+                                <button class="primary-btn" @click="upload">上传并入库</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">钉钉文档同步</div>
+                            <div class="actions">
+                                <button class="secondary-btn" @click="openDingTalkPanel">选择钉钉文档</button>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="hint">从钉钉知识库树中选择文档，同步成功后会进入知识库列表。</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section v-show="tab==='doc-chunk-config'">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">文档切片配置</div>
+                            <button class="primary-btn" @click="saveChunkConfig">保存配置</button>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-grid">
+                                <div>
+                                    <div class="field-name">切片大小</div>
+                                    <input class="form-input" type="number" v-model.number="chunkConfig.chunkSize">
+                                </div>
+                                <div>
+                                    <div class="field-name">重叠字符数</div>
+                                    <input class="form-input" type="number" v-model.number="chunkConfig.chunkOverlap">
+                                </div>
+                                <div>
+                                    <div class="field-name">分隔符策略</div>
+                                    <input class="form-input" v-model="chunkConfig.separators">
+                                </div>
+                                <div>
+                                    <div class="field-name">标题增强</div>
+                                    <select class="form-select" v-model="chunkConfig.enableTitleEnhance">
+                                        <option :value="true">启用</option>
+                                        <option :value="false">停用</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="hint" style="margin-top:14px">新配置会影响后续上传和同步；已入库文档需要重新入库后生效。</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section v-show="tab==='doc-vector-config'">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">向量模型配置</div>
+                            <button class="primary-btn" @click="saveVectorConfig">保存配置</button>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-grid">
+                                <div>
+                                    <div class="field-name">服务商</div>
+                                    <input class="form-input" v-model="vectorConfig.provider">
+                                </div>
+                                <div>
+                                    <div class="field-name">模型名称</div>
+                                    <input class="form-input" v-model="vectorConfig.model">
+                                </div>
+                                <div>
+                                    <div class="field-name">向量维度</div>
+                                    <input class="form-input" type="number" v-model.number="vectorConfig.dimension">
+                                </div>
+                                <div>
+                                    <div class="field-name">启用状态</div>
+                                    <select class="form-select" v-model="vectorConfig.enabled">
+                                        <option :value="true">启用</option>
+                                        <option :value="false">停用</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <label class="form-label">接口地址</label>
+                            <input class="form-input" v-model="vectorConfig.endpoint" placeholder="请输入 embedding endpoint">
+                            <div class="hint" style="margin-top:14px">接口地址读取时会做脱敏展示；保存后用于配置管理记录。</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section v-show="tab==='doc-permission'">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">权限配置</div>
+                            <button class="primary-btn" @click="savePermission">保存权限</button>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-grid three">
+                                <div>
+                                    <div class="field-name">文档</div>
+                                    <select class="form-select" v-model="permissionForm.documentId">
+                                        <option value="">请选择文档</option>
+                                        <option v-for="doc in docList" :key="doc.id" :value="doc.id">{{doc.name}}</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <div class="field-name">权限范围</div>
+                                    <select class="form-select" v-model="permissionForm.permissionScope">
+                                        <option value="私有">私有</option>
+                                        <option value="全员可读">全员可读</option>
+                                        <option value="指定用户">指定用户</option>
+                                        <option value="指定角色">指定角色</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <div class="field-name">授权对象</div>
+                                    <input class="form-input" v-model="permissionForm.subjectValue" placeholder="用户名或角色">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">授权记录</div>
+                            <button class="secondary-btn" @click="loadPermissions">刷新</button>
+                        </div>
+                        <div class="panel-body">
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                    <tr>
+                                        <th>文档</th>
+                                        <th>对象类型</th>
+                                        <th>授权对象</th>
+                                        <th>权限</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody v-if="permissionList.length">
+                                    <tr v-for="item in permissionList" :key="item.id">
+                                        <td>{{item.documentName}}</td>
+                                        <td>{{item.subjectType}}</td>
+                                        <td>{{item.subjectValue}}</td>
+                                        <td>{{item.permission}}</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                                <div class="empty" v-if="!permissionList.length">暂无授权记录</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section v-show="tab==='doc-search-test'">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">检索测试</div>
+                            <button class="primary-btn" @click="runSearchTest">开始检索</button>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-grid">
+                                <div>
+                                    <div class="field-name">测试问题</div>
+                                    <textarea class="textarea" v-model="searchForm.question" placeholder="请输入要测试的问题"></textarea>
+                                </div>
+                                <div>
+                                    <div class="field-name">TopK</div>
+                                    <input class="form-input" type="number" v-model.number="searchForm.topK">
+                                    <label class="form-label">限定文档</label>
+                                    <select class="form-select" v-model="searchForm.documentId">
+                                        <option value="">全部文档</option>
+                                        <option v-for="doc in docList" :key="doc.id" :value="doc.id">{{doc.name}}</option>
+                                    </select>
+                                    <label class="form-label">回答生成</label>
+                                    <select class="form-select" v-model="searchIncludeAnswer">
+                                        <option :value="false">仅检索命中</option>
+                                        <option :value="true">检索并生成回答</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel" v-if="searchResult">
+                        <div class="panel-head">
+                            <div class="panel-title">检索结果</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="result-list">
+                                <div class="result-item" v-for="hit in searchResult.hits" :key="hit.rank">
+                                    <div class="result-title">命中 {{hit.rank}}</div>
+                                    <div class="result-content">{{hit.content}}</div>
+                                </div>
+                            </div>
+                            <label class="form-label" v-if="searchResult.answer">回答预览</label>
+                            <div class="result-item" v-if="searchResult.answer">
+                                <div class="result-content">{{searchResult.answer}}</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section v-show="tab==='sessions'" class="split">
+                    <div class="panel chat-panel">
+                        <div class="panel-head">
+                            <div class="panel-title">会话工作台</div>
+                            <button class="secondary-btn" @click="newSession">新建会话</button>
+                        </div>
+                        <div class="chat-list" ref="chatBox">
+                            <div v-for="(item, index) in list" :key="index">
+                                <div class="message-row user">
+                                    <div class="message">{{item.question}}</div>
+                                </div>
+                                <div class="message-row">
+                                    <div class="message" :class="{'streaming': index === list.length - 1 && isStreaming}" v-html="renderMarkdown(item.answer)"></div>
+                                </div>
+                            </div>
+                            <div class="empty" v-if="list.length===0">暂无会话内容</div>
+                        </div>
+                        <div class="input-strip">
+                            <input v-model="question" placeholder="请输入会话内容" @keyup.enter="send">
+                            <button class="primary-btn" @click="send" :disabled="isStreaming">发送</button>
+                        </div>
+                    </div>
+
+                    <aside>
+                        <div class="side-card">
+                            <div class="panel-head">
+                                <div class="panel-title">会话信息</div>
+                            </div>
+                            <div class="panel-body">
+                                <div class="field-name">当前状态</div>
+                                <div class="status" :class="{pending:isStreaming}">{{isStreaming ? '生成中' : '空闲'}}</div>
+                                <div class="field-name" style="margin-top:18px">消息数量</div>
+                                <div class="metric-num">{{list.length}}</div>
+                            </div>
+                        </div>
+                        <div class="side-card">
+                            <div class="panel-head">
+                                <div class="panel-title">最近文档</div>
+                            </div>
+                            <div class="panel-body">
+                                <div v-for="doc in docList.slice(0,5)" :key="doc.id" style="padding:9px 0;border-bottom:1px solid #edf1f5">
+                                    <div style="font-weight:700">{{doc.name}}</div>
+                                    <div class="page-meta">{{doc.source}} · {{doc.status}}</div>
+                                </div>
+                                <div class="empty" v-if="docList.length===0" style="padding:20px 0">暂无文档</div>
+                            </div>
+                        </div>
+                    </aside>
+                </section>
+
+                <section v-show="tab==='agents'">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">Agent列表</div>
+                            <button class="primary-btn">新增Agent</button>
+                        </div>
+                        <div class="panel-body">
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                    <tr>
+                                        <th>名称</th>
+                                        <th>归属部门</th>
+                                        <th>状态</th>
+                                        <th>更新时间</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr>
+                                        <td>文档处理助手</td>
+                                        <td>运营中心</td>
+                                        <td><span class="status">启用</span></td>
+                                        <td>2026-05-21</td>
+                                    </tr>
+                                    <tr>
+                                        <td>需求整理助手</td>
+                                        <td>产品中心</td>
+                                        <td><span class="status idle">停用</span></td>
+                                        <td>2026-05-21</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section v-show="tab==='requirements'">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">需求列表</div>
+                            <button class="primary-btn">新增需求</button>
+                        </div>
+                        <div class="panel-body">
+                            <div class="query-grid" style="grid-template-columns:1.4fr 180px 180px auto;margin-bottom:16px">
+                                <div>
+                                    <div class="field-name">需求标题</div>
+                                    <input class="form-input" placeholder="请输入需求标题">
+                                </div>
+                                <div>
+                                    <div class="field-name">优先级</div>
+                                    <select class="form-select">
+                                        <option>全部</option>
+                                        <option>高</option>
+                                        <option>中</option>
+                                        <option>低</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <div class="field-name">状态</div>
+                                    <select class="form-select">
+                                        <option>全部</option>
+                                        <option>待处理</option>
+                                        <option>处理中</option>
+                                        <option>已完成</option>
+                                    </select>
+                                </div>
+                                <div class="actions">
+                                    <button class="secondary-btn">重置</button>
+                                    <button class="primary-btn">查询</button>
+                                </div>
+                            </div>
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                    <tr>
+                                        <th>需求标题</th>
+                                        <th>优先级</th>
+                                        <th>状态</th>
+                                        <th>创建时间</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr>
+                                        <td>文档批量同步优化</td>
+                                        <td>高</td>
+                                        <td><span class="status pending">处理中</span></td>
+                                        <td>2026-05-21</td>
+                                    </tr>
+                                    <tr>
+                                        <td>会话结果导出</td>
+                                        <td>中</td>
+                                        <td><span class="status idle">待处理</span></td>
+                                        <td>2026-05-21</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </section>
+
+        <div class="drawer-mask" v-if="showUploadPanel" @click.self="showUploadPanel=false">
+            <section class="drawer">
+                <div class="drawer-head">
+                    <div class="drawer-title">文档上传</div>
+                    <button class="close-btn" @click="showUploadPanel=false">×</button>
+                </div>
+                <div class="drawer-body">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">上传文件</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="file-row">
+                                <input class="file-input" type="file" id="file">
+                                <button class="primary-btn" @click="upload">上传并入库</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="drawer-mask" v-if="showDingTalkPanel" @click.self="showDingTalkPanel=false">
+            <section class="drawer">
+                <div class="drawer-head">
+                    <div class="drawer-title">钉钉文档同步</div>
+                    <button class="close-btn" @click="showDingTalkPanel=false">×</button>
+                </div>
+                <div class="drawer-body">
+                    <div class="toolbar">
+                        <div class="page-meta">已选 {{selectedDocIds.length}} 个文档</div>
+                        <div class="actions">
+                            <button class="secondary-btn" @click="loadTree" :disabled="treeLoading">刷新</button>
+                            <button class="primary-btn" @click="syncDocs" :disabled="selectedDocIds.length===0 || treeLoading">同步选中</button>
+                        </div>
+                    </div>
+                    <div class="tree-box">
+                        <div v-if="treeLoading" class="empty">加载中...</div>
+                        <div v-else-if="treeError" class="empty danger-text">{{treeError}}</div>
+                        <template v-else>
+                            <tree-item
+                                    v-for="node in docTree"
+                                    :key="node.key"
+                                    :node="node"
+                                    :parent-space-id="kbSpaceId"
+                                    :selected-doc-ids="selectedDocIds"
+                                    @toggle="handleToggle"
+                                    @update-selection="updateSelection">
+                            </tree-item>
+                            <div v-if="docTree.length===0" class="empty">暂无文档</div>
+                        </template>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<script type="text/x-template" id="tree-item-template">
+    <div>
+        <div class="tree-line" @click="handleClick">
+            <input type="checkbox"
+                   :checked="selectedDocIds.some(item => item.docId === node.key)"
+                   @change="handleCheck"
+                   @click.stop>
+            <span class="tree-type">{{node.type==='FOLDER' ? '目录' : '文档'}}</span>
+            <span class="tree-title">{{node.title}}</span>
+            <span v-if="node.type==='FOLDER'" class="page-meta">
+                {{node.loading ? '加载' : (node.expanded ? '收起' : '展开')}}
+            </span>
+        </div>
+        <div v-if="node.children && node.expanded" class="tree-children">
+            <tree-item
+                    v-for="child in node.children"
+                    :key="child.key"
+                    :node="child"
+                    :parent-space-id="node.key"
+                    :selected-doc-ids="selectedDocIds"
+                    @toggle="$emit('toggle', $event)"
+                    @update-selection="$emit('update-selection', $event)">
+            </tree-item>
+        </div>
+    </div>
+</script>
+
+<script>
+    const { createApp } = Vue;
+
+    const TreeItem = {
+        name: 'TreeItem',
+        template: '#tree-item-template',
+        props: {
+            node: Object,
+            selectedDocIds: Array,
+            parentSpaceId: String
+        },
+        methods: {
+            handleClick() {
+                if (this.node.type === 'FOLDER') {
+                    this.$emit('toggle', this.node);
+                }
+            },
+            handleCheck(e) {
+                this.$emit('update-selection', {
+                    key: this.node.key,
+                    checked: e.target.checked,
+                    parentSpaceId: this.parentSpaceId
+                });
+            }
+        }
+    };
+
+    createApp({
+        components: { TreeItem },
+        data() {
+            return {
+                token: localStorage.getItem('token'),
+                isRegister: false,
+                form: { username: localStorage.getItem('username') || '', password: '', confirmPassword: '' },
+                menus: [
+                    {
+                        key: 'documents',
+                        code: 'DOC',
+                        name: '文档管理',
+                        path: '/documents',
+                        expanded: true,
+                        children: [
+                            { key: 'doc-kb', name: '知识库管理', path: '/documents/kb' },
+                            { key: 'doc-upload', name: '文档上传', path: '/documents/upload' },
+                            { key: 'doc-chunk-config', name: '文档切片配置', path: '/documents/chunk-config' },
+                            { key: 'doc-vector-config', name: '向量模型配置', path: '/documents/vector-config' },
+                            { key: 'doc-permission', name: '权限配置', path: '/documents/permissions' },
+                            { key: 'doc-search-test', name: '检索测试', path: '/documents/search-test' }
+                        ]
+                    },
+                    { key: 'sessions', code: 'SES', name: '会话管理', path: '/sessions' },
+                    { key: 'agents', code: 'AGT', name: 'Agent管理', path: '/agents' },
+                    { key: 'requirements', code: 'REQ', name: '需求管理', path: '/requirements' }
+                ],
+                tab: 'doc-kb',
+                question: '',
+                list: [],
+                selectedDocIds: [],
+                loading: false,
+                isStreaming: false,
+                docTree: [],
+                kbSpaceId: '',
+                treeLoading: false,
+                treeError: '',
+                showUploadPanel: false,
+                showDingTalkPanel: false,
+                docQuery: { keyword: '', source: '', status: '' },
+                appliedDocQuery: { keyword: '', source: '', status: '' },
+                docList: [],
+                chunkConfig: { chunkSize: 500, chunkOverlap: 0, separators: '段落,换行,句号', enableTitleEnhance: true },
+                vectorConfig: { provider: 'DashScope', model: 'text-embedding-v2', dimension: 1536, endpoint: '', enabled: true },
+                permissionForm: { documentId: '', permissionScope: '私有', subjectType: 'USER', subjectValue: '', permission: 'READ' },
+                permissionList: [],
+                searchForm: { question: '', topK: 3, documentId: '' },
+                searchIncludeAnswer: false,
+                searchResult: null,
+                captchaX: 0,
+                captchaVerified: false,
+                captchaText: '拖动滑块完成验证',
+                captchaDragging: false
+            };
+        },
+        computed: {
+            flatMenus() {
+                return this.menus.flatMap(item => item.children ? [item, ...item.children] : [item]);
+            },
+            activeMenu() {
+                return this.flatMenus.find(item => item.key === this.tab) || this.flatMenus[1] || this.menus[0];
+            },
+            userInitial() {
+                const name = this.form.username || 'U';
+                return name.substring(0, 1).toUpperCase();
+            },
+            filteredDocs() {
+                const keyword = this.appliedDocQuery.keyword.trim().toLowerCase();
+                return this.docList.filter(doc => {
+                    const matchKeyword = !keyword || doc.name.toLowerCase().includes(keyword);
+                    const matchSource = !this.appliedDocQuery.source || doc.source === this.appliedDocQuery.source;
+                    const matchStatus = !this.appliedDocQuery.status || doc.status === this.appliedDocQuery.status;
+                    return matchKeyword && matchSource && matchStatus;
+                });
+            }
+        },
+        mounted() {
+            this.restoreRoute();
+            window.addEventListener('popstate', this.restoreRoute);
+
+            if (this.token) {
+                axios.defaults.headers.common['Authorization'] = 'Bearer ' + this.token;
+                this.getList();
+                this.loadDocList();
+                this.loadDocSettings();
+                this.loadPermissions();
+                this.loadTree();
+            }
+
+            const vm = this;
+            axios.interceptors.response.use(
+                response => response,
+                error => {
+                    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                        const msg = error.response.data?.msg || '登录已过期';
+                        vm.token = null;
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('username');
+                        delete axios.defaults.headers.common['Authorization'];
+                        alert(msg + '，请重新登录');
+                    }
+                    return Promise.reject(error);
+                }
+            );
+        },
+        beforeUnmount() {
+            window.removeEventListener('popstate', this.restoreRoute);
+        },
+        methods: {
+            switchTab(item) {
+                if (item.children) {
+                    item.expanded = !item.expanded;
+                    const first = item.children[0];
+                    if (first) {
+                        this.tab = first.key;
+                        history.pushState(null, '', first.path);
+                    }
+                    return;
+                }
+                this.tab = item.key;
+                history.pushState(null, '', item.path);
+            },
+            restoreRoute() {
+                const path = window.location.pathname;
+                const target = this.flatMenus.find(item => item.path === path);
+                this.tab = target ? target.key : 'doc-kb';
+            },
+            toggleMode() {
+                this.isRegister = !this.isRegister;
+                this.resetCaptcha();
+                this.form = { username: '', password: '', confirmPassword: '' };
+            },
+            resetCaptcha() {
+                this.captchaX = 0;
+                this.captchaVerified = false;
+                this.captchaText = '拖动滑块完成验证';
+                this.captchaDragging = false;
+            },
+            onCaptchaStart(e) {
+                if (this.captchaVerified) return;
+                this.captchaDragging = true;
+                this.captchaText = '释放完成验证';
+                const box = e.currentTarget;
+                const boxRect = box.getBoundingClientRect();
+                const startX = e.clientX - boxRect.left;
+
+                const moveHandler = (ev) => {
+                    if (!this.captchaDragging) return;
+                    let x = ev.clientX - boxRect.left - startX;
+                    x = Math.max(0, Math.min(x, boxRect.width - 42));
+                    this.captchaX = x;
+                    if (x >= boxRect.width - 48) {
+                        this.captchaVerified = true;
+                        this.captchaText = '验证通过';
+                        this.captchaDragging = false;
+                        document.removeEventListener('mousemove', moveHandler);
+                        document.removeEventListener('mouseup', upHandler);
+                    }
+                };
+                const upHandler = () => {
+                    this.captchaDragging = false;
+                    if (!this.captchaVerified) {
+                        this.captchaX = 0;
+                        this.captchaText = '拖动滑块完成验证';
+                    }
+                    document.removeEventListener('mousemove', moveHandler);
+                    document.removeEventListener('mouseup', upHandler);
+                };
+                document.addEventListener('mousemove', moveHandler);
+                document.addEventListener('mouseup', upHandler);
+            },
+            async handleSubmit() {
+                if (!this.form.username || !this.form.password) {
+                    alert('请填写完整信息');
+                    return;
+                }
+                if (this.isRegister) {
+                    if (this.form.password !== this.form.confirmPassword) {
+                        alert('两次密码输入不一致');
+                        return;
+                    }
+                    await this.register();
+                } else {
+                    await this.login();
+                }
+            },
+            async login() {
+                try {
+                    this.loading = true;
+                    let res = await axios.post('/api/user/login', this.form);
+                    if (res.data.code === 200) {
+                        this.token = res.data.token;
+                        localStorage.setItem('token', this.token);
+                        localStorage.setItem('username', this.form.username);
+                        axios.defaults.headers.common['Authorization'] = 'Bearer ' + this.token;
+                        this.loadDocList();
+                        this.loadDocSettings();
+                        this.loadPermissions();
+                        this.loadTree();
+                    } else {
+                        alert(res.data.msg || '登录失败');
+                        this.resetCaptcha();
+                    }
+                } catch (e) {
+                    alert('登录失败：' + e.message);
+                    this.resetCaptcha();
+                } finally {
+                    this.loading = false;
+                }
+            },
+            async register() {
+                try {
+                    this.loading = true;
+                    let res = await axios.post('/api/user/register', this.form);
+                    if (res.data.code === 200) {
+                        alert(res.data.msg);
+                        this.toggleMode();
+                    } else {
+                        alert(res.data.msg || '注册失败');
+                        this.resetCaptcha();
+                    }
+                } catch (e) {
+                    alert('注册失败：' + e.message);
+                    this.resetCaptcha();
+                } finally {
+                    this.loading = false;
+                }
+            },
+            applyDocQuery() {
+                this.appliedDocQuery = { ...this.docQuery };
+                this.loadDocList();
+            },
+            resetDocQuery() {
+                this.docQuery = { keyword: '', source: '', status: '' };
+                this.applyDocQuery();
+            },
+            normalizeDoc(doc) {
+                return {
+                    id: doc.id,
+                    name: doc.filename || doc.name || '',
+                    source: doc.source || '本地上传',
+                    status: doc.status || '已入库',
+                    fileType: doc.fileType || '未知',
+                    fileSize: doc.fileSize || 0,
+                    chunkCount: doc.chunkCount || 0,
+                    permissionScope: doc.permissionScope || '私有',
+                    updateTime: doc.updateTime || doc.createTime || ''
+                };
+            },
+            async loadDocList() {
+                if (!this.token) return;
+                try {
+                    const params = { ...this.appliedDocQuery };
+                    let res = await axios.get('/api/doc/list', { params });
+                    this.docList = (res.data.data || []).map(this.normalizeDoc);
+                } catch (e) {
+                    console.error('获取文档列表失败：', e);
+                }
+            },
+            async loadDocSettings() {
+                if (!this.token) return;
+                try {
+                    const chunkRes = await axios.get('/api/doc/chunk-config');
+                    this.chunkConfig = { ...this.chunkConfig, ...(chunkRes.data.data || {}) };
+                    const vectorRes = await axios.get('/api/doc/vector-config');
+                    this.vectorConfig = { ...this.vectorConfig, ...(vectorRes.data.data || {}) };
+                } catch (e) {
+                    console.error('获取文档配置失败：', e);
+                }
+            },
+            addDocRecord(name, source, status = '已入库') {
+                this.docList.unshift({
+                    id: Date.now() + '_' + Math.random().toString(16).slice(2),
+                    name,
+                    source,
+                    status,
+                    updateTime: new Date().toLocaleString('zh-CN', { hour12: false })
+                });
+            },
+            openDingTalkPanel() {
+                this.showDingTalkPanel = true;
+                if (!this.docTree.length) this.loadTree();
+            },
+            async upload() {
+                const input = document.getElementById('file');
+                if (!input || !input.files || !input.files[0]) {
+                    alert('请选择文件');
+                    return;
+                }
+                try {
+                    let fd = new FormData();
+                    fd.append('file', input.files[0]);
+                    this.loading = true;
+                    let res = await axios.post('/api/doc/upload', fd);
+                    if (res.data.code === 200) {
+                        await this.loadDocList();
+                        this.showUploadPanel = false;
+                        alert('上传成功');
+                    } else {
+                        alert('上传失败：' + res.data.msg);
+                    }
+                } catch (e) {
+                    alert('上传失败：' + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+            async send() {
+                if (!this.question.trim() || this.isStreaming) return;
+
+                const userQuestion = this.question;
+                this.list.push({ question: userQuestion, answer: '' });
+                this.question = '';
+
+                const currentAnswer = this.list[this.list.length - 1];
+                let fullAnswer = '';
+
+                try {
+                    this.isStreaming = true;
+                    const encodedQuestion = encodeURIComponent(userQuestion);
+                    const encodedToken = encodeURIComponent(this.token);
+                    const eventSource = new EventSource(`/api/rag/ask-stream?q=${encodedQuestion}&token=${encodedToken}`);
+
+                    eventSource.onmessage = (event) => {
+                        fullAnswer += event.data;
+                        currentAnswer.answer = fullAnswer;
+                        this.$nextTick(() => {
+                            const chatBox = this.$refs.chatBox;
+                            if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+                        });
+                    };
+
+                    eventSource.onerror = () => {
+                        eventSource.close();
+                        this.isStreaming = false;
+                        if (!fullAnswer) {
+                            currentAnswer.answer = '连接失败，请重试';
+                        }
+                    };
+                } catch (e) {
+                    alert('发送失败：' + e.message);
+                    this.isStreaming = false;
+                }
+            },
+            newSession() {
+                this.list = [];
+                this.question = '';
+                this.isStreaming = false;
+            },
+            async getList() {
+                try {
+                    let res = await axios.get('/api/chat/history');
+                    this.list = res.data || [];
+                } catch (e) {
+                    console.error('获取会话异常：', e);
+                }
+            },
+            renderMarkdown(text) {
+                if (!text) return '';
+                marked.setOptions({ breaks: true, gfm: true });
+                const html = marked.parse(text);
+                return window.DOMPurify ? DOMPurify.sanitize(html) : html;
+            },
+            async handleToggle(node) {
+                if (node.type !== 'FOLDER') return;
+
+                if (node.expanded) {
+                    node.expanded = false;
+                    return;
+                }
+
+                if (node.children) {
+                    node.expanded = true;
+                    return;
+                }
+
+                node.loading = true;
+                try {
+                    let res = await axios.get('/api/dingtalk/tree?parentId=' + node.key);
+                    node.children = res.data.data || [];
+                    node.expanded = true;
+                } catch(e) {
+                    console.error('加载子节点失败:', e);
+                } finally {
+                    node.loading = false;
+                }
+            },
+            updateSelection({ key, checked, parentSpaceId }) {
+                if (checked) {
+                    const node = this.findNodeByKey(this.docTree, key);
+                    if (node && !this.selectedDocIds.some(item => item.docId === key)) {
+                        const finalSpaceId = parentSpaceId || this.kbSpaceId;
+                        this.selectedDocIds.push({
+                            docId: key,
+                            docName: node.title,
+                            docType: node.type,
+                            spaceId: finalSpaceId
+                        });
+                    }
+                } else {
+                    this.selectedDocIds = this.selectedDocIds.filter(item => item.docId !== key);
+                }
+            },
+            findNodeByKey(nodes, key) {
+                for (const node of nodes) {
+                    if (node.key === key) return node;
+                    if (node.children) {
+                        const found = this.findNodeByKey(node.children, key);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            },
+            async syncDocs() {
+                if(!confirm('确认同步选中的 ' + this.selectedDocIds.length + ' 个文档？')) return;
+                const selectedDocs = [...this.selectedDocIds];
+                try {
+                    this.loading = true;
+                    let res = await axios.post('/api/dingtalk/sync', {
+                        docs: selectedDocs.map(item => ({
+                            docId: item.docId,
+                            docName: item.docName,
+                            docType: item.docType,
+                            spaceId: item.spaceId
+                        }))
+                    });
+                    selectedDocs.forEach(item => this.addDocRecord(item.docName, '钉钉'));
+                    alert('同步完成，成功：' + res.data.data.successCount);
+                    this.selectedDocIds = [];
+                    this.showDingTalkPanel = false;
+                    this.loadDocList();
+                    this.loadTree();
+                } catch(e) {
+                    alert('同步异常：' + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+            async loadTree() {
+                this.treeLoading = true;
+                this.treeError = '';
+                try {
+                    let res = await axios.get('/api/dingtalk/tree');
+                    this.docTree = res.data.data || [];
+                    this.kbSpaceId = res.data.spaceId || '';
+                } catch(e) {
+                    this.treeError = e.message || '加载失败，请检查钉钉配置';
+                } finally {
+                    this.treeLoading = false;
+                }
+            },
+            async saveChunkConfig() {
+                try {
+                    this.loading = true;
+                    let res = await axios.put('/api/doc/chunk-config', this.chunkConfig);
+                    alert(res.data.msg || '保存成功');
+                } catch (e) {
+                    alert('保存失败：' + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+            async saveVectorConfig() {
+                try {
+                    this.loading = true;
+                    let res = await axios.put('/api/doc/vector-config', this.vectorConfig);
+                    alert(res.data.msg || '保存成功');
+                } catch (e) {
+                    alert('保存失败：' + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+            async loadPermissions() {
+                if (!this.token) return;
+                try {
+                    let res = await axios.get('/api/doc/permissions');
+                    this.permissionList = res.data.data || [];
+                } catch (e) {
+                    console.error('获取权限列表失败：', e);
+                }
+            },
+            async savePermission() {
+                if (!this.permissionForm.documentId) {
+                    alert('请选择文档');
+                    return;
+                }
+                const subjectType = this.permissionForm.permissionScope === '指定角色' ? 'ROLE' : 'USER';
+                try {
+                    this.loading = true;
+                    let res = await axios.put('/api/doc/permissions', {
+                        ...this.permissionForm,
+                        subjectType
+                    });
+                    alert(res.data.msg || '保存成功');
+                    this.loadPermissions();
+                    this.loadDocList();
+                } catch (e) {
+                    alert('保存失败：' + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+            async runSearchTest() {
+                if (!this.searchForm.question.trim()) {
+                    alert('请输入测试问题');
+                    return;
+                }
+                try {
+                    this.loading = true;
+                    this.searchResult = null;
+                    let res = await axios.post('/api/doc/search-test', {
+                        ...this.searchForm,
+                        includeAnswer: this.searchIncludeAnswer
+                    });
+                    this.searchResult = res.data.data;
+                } catch (e) {
+                    alert('检索失败：' + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+            goSearchWithDoc(doc) {
+                this.searchForm.documentId = doc.id;
+                this.searchForm.question = '';
+                this.searchResult = null;
+                this.tab = 'doc-search-test';
+                history.pushState(null, '', '/documents/search-test');
+            },
+            openDocDetail(doc) {
+                alert('文档：' + doc.name + '\n来源：' + doc.source + '\n状态：' + doc.status + '\n切片数：' + doc.chunkCount + '\n权限：' + doc.permissionScope);
+            },
+            async markDocStatus(doc, status) {
+                try {
+                    this.loading = true;
+                    let res = await axios.put('/api/doc/' + doc.id + '/status', { status });
+                    if (res.data.code === 200) {
+                        await this.loadDocList();
+                    } else {
+                        alert(res.data.msg || '更新失败');
+                    }
+                } catch (e) {
+                    alert('更新失败：' + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            }
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
