@@ -320,8 +320,8 @@
                         </div>
                         <div class="panel-body">
                             <div class="file-row">
-                                <input class="file-input" type="file" id="file">
-                                <button class="primary-btn" @click="upload">上传并入库</button>
+                                <input class="file-input" type="file" ref="pageUploadFile">
+                                <button class="primary-btn" @click="upload('pageUploadFile')">上传并入库</button>
                             </div>
                         </div>
                     </div>
@@ -686,8 +686,8 @@
                         </div>
                         <div class="panel-body">
                             <div class="file-row">
-                                <input class="file-input" type="file" id="file">
-                                <button class="primary-btn" @click="upload">上传并入库</button>
+                                <input class="file-input" type="file" ref="drawerUploadFile">
+                                <button class="primary-btn" @click="upload('drawerUploadFile')">上传并入库</button>
                             </div>
                         </div>
                     </div>
@@ -734,7 +734,8 @@
 <script type="text/x-template" id="tree-item-template">
     <div>
         <div class="tree-line" @click="handleClick">
-            <input type="checkbox"
+            <input v-if="node.type !== 'FOLDER'"
+                   type="checkbox"
                    :checked="selectedDocIds.some(item => item.docId === node.key)"
                    @change="handleCheck"
                    @click.stop>
@@ -776,6 +777,7 @@
                 }
             },
             handleCheck(e) {
+                if (this.node.type === 'FOLDER') return;
                 this.$emit('update-selection', {
                     key: this.node.key,
                     checked: e.target.checked,
@@ -1068,8 +1070,9 @@
                 this.showDingTalkPanel = true;
                 if (!this.docTree.length) this.loadTree();
             },
-            async upload() {
-                const input = document.getElementById('file');
+            async upload(refName) {
+                const inputRef = this.$refs[refName];
+                const input = Array.isArray(inputRef) ? inputRef[0] : inputRef;
                 if (!input || !input.files || !input.files[0]) {
                     alert('请选择文件');
                     return;
@@ -1082,6 +1085,7 @@
                     if (res.data.code === 200) {
                         await this.loadDocList();
                         this.showUploadPanel = false;
+                        input.value = '';
                         alert('上传成功');
                     } else {
                         alert('上传失败：' + res.data.msg);
@@ -1175,6 +1179,7 @@
             updateSelection({ key, checked, parentSpaceId }) {
                 if (checked) {
                     const node = this.findNodeByKey(this.docTree, key);
+                    if (!node || node.type === 'FOLDER') return;
                     if (node && !this.selectedDocIds.some(item => item.docId === key)) {
                         const finalSpaceId = parentSpaceId || this.kbSpaceId;
                         this.selectedDocIds.push({
@@ -1211,8 +1216,17 @@
                             spaceId: item.spaceId
                         }))
                     });
-                    selectedDocs.forEach(item => this.addDocRecord(item.docName, '钉钉'));
-                    alert('同步完成，成功：' + res.data.data.successCount);
+                    const data = res.data.data || {};
+                    const successIds = data.success || [];
+                    selectedDocs
+                        .filter(item => successIds.includes(item.docId))
+                        .forEach(item => this.addDocRecord(item.docName, '钉钉'));
+                    const failed = data.failed || [];
+                    let message = '同步完成，成功：' + (data.successCount || 0) + '，失败：' + (data.failCount || 0);
+                    if (failed.length) {
+                        message += '\n\n失败原因：\n' + failed.join('\n');
+                    }
+                    alert(message);
                     this.selectedDocIds = [];
                     this.showDingTalkPanel = false;
                     this.loadDocList();

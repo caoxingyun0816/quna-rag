@@ -3,6 +3,11 @@
 const baseUrl = (process.env.QUNA_RAG_BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
 let token = process.env.QUNA_RAG_TOKEN || '';
 
+const RESOURCE_URIS = {
+  serverInfo: 'quna-rag://server/info',
+  docs: 'quna-rag://docs'
+};
+
 let buffer = Buffer.alloc(0);
 
 process.stdin.on('data', chunk => {
@@ -29,8 +34,9 @@ function readMessages() {
 
     const raw = buffer.slice(bodyStart, bodyEnd).toString('utf8');
     buffer = buffer.slice(bodyEnd);
-    handleMessage(JSON.parse(raw)).catch(error => {
-      sendError(null, -32603, error.message || String(error));
+    const message = JSON.parse(raw);
+    handleMessage(message).catch(error => {
+      sendError(message.id || null, -32603, error.message || String(error));
     });
   }
 }
@@ -41,7 +47,10 @@ async function handleMessage(message) {
   if (message.method === 'initialize') {
     sendResult(message.id, {
       protocolVersion: '2024-11-05',
-      capabilities: { tools: {} },
+      capabilities: {
+        tools: {},
+        resources: {}
+      },
       serverInfo: { name: 'quna-rag', version: '1.0.0' }
     });
     return;
@@ -63,7 +72,52 @@ async function handleMessage(message) {
     return;
   }
 
+  if (message.method === 'resources/list') {
+    sendResult(message.id, { resources: resources() });
+    return;
+  }
+
+  if (message.method === 'resources/templates/list') {
+    sendResult(message.id, { resourceTemplates: resourceTemplates() });
+    return;
+  }
+
+  if (message.method === 'resources/read') {
+    const { uri } = message.params || {};
+    const result = await readResource(uri);
+    sendResult(message.id, result);
+    return;
+  }
+
   sendError(message.id, -32601, `Unsupported method: ${message.method}`);
+}
+
+function resources() {
+  return [
+    {
+      uri: RESOURCE_URIS.serverInfo,
+      name: 'quna-rag 服务信息',
+      description: '当前 quna-rag MCP 服务和后端地址信息。',
+      mimeType: 'application/json'
+    },
+    {
+      uri: RESOURCE_URIS.docs,
+      name: 'quna-rag 文档列表',
+      description: '当前登录用户可访问的文档列表。读取前需要先调用 quna_login，或设置 QUNA_RAG_TOKEN。',
+      mimeType: 'application/json'
+    }
+  ];
+}
+
+function resourceTemplates() {
+  return [
+    {
+      uriTemplate: 'quna-rag://docs{?keyword,source,status}',
+      name: 'quna-rag 文档列表查询',
+      description: '按文档名称关键词、来源、状态查询当前登录用户可访问的文档列表。',
+      mimeType: 'application/json'
+    }
+  ];
 }
 
 function tools() {
@@ -141,6 +195,46 @@ async function callTool(name, args) {
   }
 
   throw new Error(`Unknown tool: ${name}`);
+}
+
+async function readResource(uri) {
+  if (uri === RESOURCE_URIS.serverInfo) {
+    return resourceText(uri, {
+      name: 'quna-rag',
+      version: '1.0.0',
+      baseUrl,
+      authenticated: Boolean(token)
+    });
+  }
+
+  if (uri === RESOURCE_URIS.docs || uri.startsWith(`${RESOURCE_URIS.docs}?`)) {
+    const args = parseDocsResourceArgs(uri);
+    const data = await callTool('quna_doc_list', args);
+    return resourceText(uri, data);
+  }
+
+  throw new Error(`Unknown resource: ${uri}`);
+}
+
+function parseDocsResourceArgs(uri) {
+  const parsed = new URL(uri);
+  return {
+    keyword: parsed.searchParams.get('keyword') || '',
+    source: parsed.searchParams.get('source') || '',
+    status: parsed.searchParams.get('status') || ''
+  };
+}
+
+function resourceText(uri, data) {
+  return {
+    contents: [
+      {
+        uri,
+        mimeType: 'application/json',
+        text: JSON.stringify(data, null, 2)
+      }
+    ]
+  };
 }
 
 async function request(path, options = {}, requireToken = true) {
