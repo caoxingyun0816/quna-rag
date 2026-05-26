@@ -46,23 +46,12 @@ AI Client → HTTP Request → Spring AI MCP Server
 已在 `pom.xml` 中添加：
 
 ```xml
-<!-- Spring AI BOM -->
-<dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-bom</artifactId>
-            <version>2.0.0-M7</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
-</dependencyManagement>
 
 <!-- Spring AI MCP Server Starter -->
 <dependency>
     <groupId>org.springframework.ai</groupId>
     <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+    <version>1.1.2</version>
 </dependency>
 ```
 
@@ -73,12 +62,16 @@ AI Client → HTTP Request → Spring AI MCP Server
 ```yaml
 spring:
   ai:
-    mcp:
-      server:
-        name: quna-rag-mcp
-        version: 1.0.0
-        protocol: STREAMABLE
-        type: SYNC
+     mcp:
+        server:
+           enabled: true
+           name: quna-rag
+           version: 1.0.0
+           type: SYNC
+           protocol: STREAMABLE
+           streamable-http:
+              mcp-endpoint: /mcp
+
 ```
 
 ### 3. 启动应用
@@ -155,7 +148,7 @@ public Map<String, Object> qunaLogin(
   "success": true,
   "question": "你的问题",
   "context": "相关文档内容",
-  "hits": [...],
+  "hits": [],
   "answer": "",
   "includeAnswer": false
 }
@@ -168,12 +161,6 @@ public Map<String, Object> qunaLogin(
 - **URI**: `quna-rag://server/info`
 - **描述**: 当前 quna-rag MCP 服务和后端地址信息
 - **MIME Type**: `application/json`
-
-### 2. 文档列表
-
-- **URI Template**: `quna-rag://docs{?keyword,source,status}`
-- **描述**: 当前登录用户可访问的文档列表
-- **示例**: `quna-rag://docs?keyword=测试&status=已入库`
 
 ## 💻 开发指南
 
@@ -190,7 +177,7 @@ public Map<String, Object> newTool(
     // 业务逻辑
     Map<String, Object> result = new HashMap<>();
     result.put("success", true);
-    result.put("data", ...);
+    result.put("data", "");
     return result;
 }
 ```
@@ -304,130 +291,3 @@ curl -X POST http://localhost:8080/mcp \
     }
   }'
 ```
-
-### 使用测试脚本
-
-## 📊 对比分析
-
-### 代码复杂度对比
-
-| 指标 | 自定义实现 | Spring AI 实现 | 减少比例 |
-|------|-----------|---------------|---------|
-| 总代码行数 | ~600 | ~200 | 67% ↓ |
-| 模型类数量 | 2 | 0 | 100% ↓ |
-| Controller 代码 | ~170 行 | 0 | 100% ↓ |
-| Service 代码 | ~300 行 | ~126 行 | 58% ↓ |
-| 配置代码 | 0 | ~34 行 | - |
-
-### 功能对比
-
-| 功能 | 自定义实现 | Spring AI 实现 |
-|------|-----------|---------------|
-| 工具调用 | ✅ | ✅ |
-| 资源访问 | ✅ | ✅ |
-| 错误处理 | 手动 | ✅ 自动 |
-| Schema 生成 | 手动 | ✅ 自动 |
-| 协议兼容 | 基础 | ✅ 完整 |
-| 日志记录 | 手动 | ✅ 自动 |
-| 监控指标 | ❌ | ✅ 支持 |
-
-## ⚠️ 注意事项
-
-### 1. Spring AI 版本兼容性
-
-当前使用 `1.0.0-M6`（里程碑版本），某些 API 可能在正式版本中发生变化。
-
-**检查最新版本**:
-```bash
-# 查看 Spring AI 最新版本
-curl https://repo.spring.io/milestone/org/springframework/ai/
-```
-
-### 2. Maven 仓库配置
-
-Spring AI 里程碑版本需要从 Spring Milestones 仓库下载：
-
-```xml
-<repositories>
-    <repository>
-        <id>spring-milestones</id>
-        <url>https://repo.spring.io/milestone</url>
-    </repository>
-</repositories>
-```
-
-### 3. 资源注解支持
-
-`@Resource` 注解在某些 Spring AI 版本中可能不完全支持。如果遇到这个问题：
-
-**替代方案**: 继续使用之前实现的 `McpController` 和 `McpToolService`，它们与 Spring AI 可以共存。
-
-### 4. 认证集成
-
-需要在工具方法中正确实现用户认证。推荐使用：
-- Spring Security
-- JWT Interceptor
-- ThreadLocal 上下文
-
-## 🔄 迁移建议
-
-如果你之前使用的是自定义 MCP 实现：
-
-### 渐进式迁移
-
-1. **保留两套实现**（临时）
-   - 自定义实现：`/mcp` endpoint
-   - Spring AI 实现：`/mcp-springai` endpoint
-
-2. **逐步迁移客户端**
-   - 先让部分客户端使用 Spring AI endpoint
-   - 验证稳定性后全面切换
-
-3. **移除旧实现**
-   - 删除 `com.quna.rag.mcp.controller` 包
-   - 删除 `com.quna.rag.mcp.model` 包
-   - 删除 `com.quna.rag.mcp.service.McpToolService`
-
-### 完全切换到 Spring AI
-
-如果决定完全使用 Spring AI：
-
-```bash
-# 删除旧文件
-rm -rf src/main/java/com/quna/rag/mcp/controller
-rm -rf src/main/java/com/quna/rag/mcp/model
-rm src/main/java/com/quna/rag/mcp/service/McpToolService.java
-
-# 保留（可选）
-# - scripts/quna-rag-mcp.js（作为备用）
-# - MCP-INTEGRATION.md（参考文档）
-```
-
-## 📚 参考资料
-
-- [Spring AI 官方文档](https://spring.io/projects/spring-ai)
-- [Spring AI MCP 文档](https://docs.spring.io/spring-ai/reference/api/mcp.html)
-- [MCP 协议规范](https://modelcontextprotocol.io)
-- [Spring AI GitHub](https://github.com/spring-projects/spring-ai)
-
-## 🎯 总结
-
-使用 Spring AI 实现 MCP Server 的优势：
-
-✅ **更少的代码** - 67% 代码量减少  
-✅ **更简单的开发** - 只需添加 `@Tool` 注解  
-✅ **更好的维护** - 官方框架支持  
-✅ **更强的类型安全** - 编译时检查  
-✅ **更完善的生态** - Spring AI 工具链  
-
-**推荐场景**:
-- ✅ 新项目直接使用 Spring AI
-- ✅ 现有项目计划长期使用 MCP
-- ✅ 需要与 Spring AI 其他功能集成
-
-**暂时保留自定义实现的场景**:
-- ⚠️ 需要快速上线，不想引入新依赖
-- ⚠️ Spring AI 版本不稳定
-- ⚠️ 需要完全控制协议细节
-
-选择适合你的方案吧！🚀
