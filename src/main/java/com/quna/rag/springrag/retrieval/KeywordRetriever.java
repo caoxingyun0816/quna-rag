@@ -49,6 +49,12 @@ public class KeywordRetriever {
         hit.setDocId(chunk.getDocId());
         hit.setCollectionCode(chunk.getCollectionCode());
         hit.setFilename(chunk.getFilename());
+        hit.setFileType(chunk.getFileType());
+        hit.setProject(chunk.getProject());
+        hit.setModule(chunk.getModule());
+        hit.setDocType(chunk.getDocType());
+        hit.setTags(chunk.getTags());
+        hit.setChunkIndex(chunk.getChunkIndex());
         hit.setTitlePath(chunk.getTitlePath());
         hit.setContent(chunk.getContent());
         hit.setKeywordScore(chunk.getKeywordScore() == null ? 0.1d : chunk.getKeywordScore());

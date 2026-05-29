@@ -47,6 +47,12 @@ public class VectorRetriever {
         hit.setDocId(longValue(metadata.get("docId")));
         hit.setCollectionCode(collectionType.getCode());
         hit.setFilename(stringValue(metadata.get("filename")));
+        hit.setFileType(stringValue(metadata.get("fileType")));
+        hit.setProject(stringValue(metadata.get("project")));
+        hit.setModule(stringValue(metadata.get("module")));
+        hit.setDocType(stringValue(metadata.get("docType")));
+        hit.setTags(stringValue(metadata.get("tags")));
+        hit.setChunkIndex(intValue(metadata.get("chunkIndex")));
         hit.setTitlePath(stringValue(metadata.get("titlePath")));
         hit.setContent(document.getText());
         hit.setVectorScore(document.getScore() == null ? 0d : document.getScore());
@@ -74,6 +80,12 @@ public class VectorRetriever {
         if (value == null) return null;
         if (value instanceof Number number) return number.longValue();
         return Long.parseLong(String.valueOf(value));
+    }
+
+    private Integer intValue(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number number) return number.intValue();
+        return Integer.parseInt(String.valueOf(value));
     }
 
     private String stringValue(Object value) {

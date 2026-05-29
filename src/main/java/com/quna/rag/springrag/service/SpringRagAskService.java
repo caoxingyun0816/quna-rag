@@ -1,14 +1,14 @@
 package com.quna.rag.springrag.service;
 
 import com.quna.rag.springrag.model.RagAskRequest;
+import com.quna.rag.springrag.model.RagAskResult;
 import com.quna.rag.springrag.model.RagHit;
+import com.quna.rag.springrag.model.RagSearchResult;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * RAG 问答服务，先检索相关切片，再组织提示词调用大模型生成回答。
@@ -24,10 +24,9 @@ public class SpringRagAskService {
         this.chatClient = chatClient;
     }
 
-    @SuppressWarnings("unchecked")
-    public Map<String, Object> ask(RagAskRequest request) {
-        Map<String, Object> searchResult = searchService.search(request);
-        List<RagHit> hits = (List<RagHit>) searchResult.get("hits");
+    public RagAskResult ask(RagAskRequest request) {
+        RagSearchResult searchResult = searchService.search(request);
+        List<RagHit> hits = searchResult.getHits();
         String answer;
         if (hits == null || hits.isEmpty()) {
             answer = "没有找到足够相关的文档。";
@@ -37,13 +36,8 @@ public class SpringRagAskService {
                     .call()
                     .content();
         }
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("question", request.getQuestion());
-        result.put("answer", answer);
-        if (Boolean.TRUE.equals(request.getIncludeSources())) {
-            result.put("sources", hits);
-        }
-        return result;
+        List<RagHit> sources = Boolean.TRUE.equals(request.getIncludeSources()) ? hits : null;
+        return new RagAskResult(request.getQuestion(), answer, sources);
     }
 
     private String prompt(String question, List<RagHit> hits) {

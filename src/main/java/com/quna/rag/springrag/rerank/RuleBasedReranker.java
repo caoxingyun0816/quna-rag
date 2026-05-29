@@ -34,9 +34,9 @@ public class RuleBasedReranker implements RagReranker {
             if (title.contains(token)) bonus += 0.08;
             if (content.contains(token)) bonus += 0.03;
         }
-        if (same(hit.getMetadata().get("project"), request.getProject())) bonus += 0.08;
-        if (same(hit.getMetadata().get("module"), request.getModule())) bonus += 0.08;
-        if (same(hit.getMetadata().get("docType"), request.getDocType())) bonus += 0.08;
+        if (same(hit.getProject(), request.getProject())) bonus += 0.08;
+        if (same(hit.getModule(), request.getModule())) bonus += 0.08;
+        if (same(hit.getDocType(), request.getDocType())) bonus += 0.08;
         if (hit.isVectorHit() && hit.isKeywordHit()) bonus += 0.08;
         return Math.min(0.35, bonus);
     }

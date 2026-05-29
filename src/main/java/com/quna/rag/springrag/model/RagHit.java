@@ -1,5 +1,6 @@
 package com.quna.rag.springrag.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.util.LinkedHashMap;
@@ -14,6 +15,12 @@ public class RagHit {
     private Long docId;
     private String collectionCode;
     private String filename;
+    private String fileType;
+    private String project;
+    private String module;
+    private String docType;
+    private String tags;
+    private Integer chunkIndex;
     private String titlePath;
     private String content;
     private double vectorScore;
@@ -21,5 +28,6 @@ public class RagHit {
     private double score;
     private boolean vectorHit;
     private boolean keywordHit;
+    @JsonIgnore
     private Map<String, Object> metadata = new LinkedHashMap<>();
 }
