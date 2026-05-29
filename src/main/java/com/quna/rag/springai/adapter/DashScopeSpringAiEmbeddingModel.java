@@ -79,7 +79,8 @@ public class DashScopeSpringAiEmbeddingModel implements EmbeddingModel {
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
-                throw new IllegalStateException("DashScope Embedding API 状态码异常: " + response.statusCode());
+                throw new IllegalStateException("DashScope Embedding API 状态码异常: "
+                        + response.statusCode() + ", body=" + response.body());
             }
             JSONObject output = JSON.parseObject(response.body()).getJSONObject("output");
             if (output == null) {

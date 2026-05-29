@@ -1,5 +1,6 @@
 package com.quna.rag.util;
 
+import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
@@ -34,10 +35,9 @@ public class FileParseUtil {
     }
 
     private String pdf(InputStream in) throws Exception {
-        PDDocument doc = PDDocument.load(in);
-        String text = new PDFTextStripper().getText(doc);
-        doc.close();
-        return text;
+        try (PDDocument doc = Loader.loadPDF(in.readAllBytes())) {
+            return new PDFTextStripper().getText(doc);
+        }
     }
 
     private String word(InputStream in) {

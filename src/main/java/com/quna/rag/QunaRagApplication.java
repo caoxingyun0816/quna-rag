@@ -5,7 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-@MapperScan("com.quna.rag.mapper")
+@MapperScan({"com.quna.rag.mapper", "com.quna.rag.springrag.store"})
 public class QunaRagApplication {
     public static void main(String[] args) {
         SpringApplication.run(QunaRagApplication.class, args);
