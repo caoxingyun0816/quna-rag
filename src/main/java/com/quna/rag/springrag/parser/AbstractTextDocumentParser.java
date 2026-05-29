@@ -5,6 +5,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+/**
+ * 文本类解析器基类，封装 UTF-8 读取、文件基础信息填充和按标题拆出解析段落的公共逻辑。
+ */
 
 public abstract class AbstractTextDocumentParser implements DocumentParser {
     protected ParsedDocument fromText(MultipartFile file, String text, boolean parseHeadings) {

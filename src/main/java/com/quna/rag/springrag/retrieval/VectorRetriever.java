@@ -11,6 +11,9 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 向量检索器，基于 Spring AI VectorStore 从 Milvus 集合中召回语义相近切片。
+ */
 @Component
 public class VectorRetriever {
     private final RagVectorStoreRouter vectorStoreRouter;
@@ -20,6 +23,7 @@ public class VectorRetriever {
     }
 
     public List<RagHit> retrieve(RagCollectionType collectionType, RagSearchRequest request, int topK) {
+        // 过滤条件直接下推给 Milvus，避免跨项目、跨模块的向量结果被召回后再丢弃。
         SearchRequest.Builder builder = SearchRequest.builder()
                 .query(request.getQuestion())
                 .topK(topK)
@@ -36,6 +40,7 @@ public class VectorRetriever {
     }
 
     private RagHit toHit(RagCollectionType collectionType, Document document) {
+        // VectorStore 返回的是向量库文档，这里转换成统一的 RagHit，后续才能和关键词结果合并。
         Map<String, Object> metadata = document.getMetadata();
         RagHit hit = new RagHit();
         hit.setChunkId(longValue(metadata.get("chunkId")));

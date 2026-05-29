@@ -4,6 +4,9 @@ import lombok.Data;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+/**
+ * 检索命中结果模型，承载向量检索、关键词检索和重排后的统一返回结构。
+ */
 
 @Data
 public class RagHit {

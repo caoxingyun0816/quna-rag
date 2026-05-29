@@ -11,6 +11,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
+/**
+ * Spring RAG 对外接口层，负责文档上传、混合检索和基于检索结果问答的 HTTP 入口。
+ */
 @RestController
 @RequestMapping("/api/springrag")
 public class SpringRagController {

@@ -8,6 +8,9 @@ import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
+/**
+ * Tika 嵌入文档空提取器，用于禁止解析图片、附件等嵌入内容，避免无关噪声进入知识库。
+ */
 
 @Slf4j
 public class NoOpEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {

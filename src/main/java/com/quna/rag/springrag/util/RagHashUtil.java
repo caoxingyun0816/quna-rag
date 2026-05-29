@@ -2,6 +2,9 @@ package com.quna.rag.springrag.util;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+/**
+ * 哈希工具类，统一计算文档和切片内容的 SHA-256，用于去重和一致性判断。
+ */
 
 public final class RagHashUtil {
     private RagHashUtil() {

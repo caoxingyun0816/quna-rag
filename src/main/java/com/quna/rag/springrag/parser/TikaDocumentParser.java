@@ -21,6 +21,9 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Tika 自动解析器，作为 Office/PDF 等复杂格式的通用解析兜底实现。
+ */
 @Slf4j
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)

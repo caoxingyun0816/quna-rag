@@ -16,6 +16,9 @@ import org.springframework.stereotype.Component;
 import java.util.EnumMap;
 import java.util.Map;
 
+/**
+ * 向量库路由器，为不同知识库集合创建并缓存对应的 Milvus VectorStore。
+ */
 @Slf4j
 @Component
 public class RagVectorStoreRouter {

@@ -4,6 +4,9 @@ import com.quna.rag.springrag.model.RagChunkEntity;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;
+/**
+ * 切片表 MyBatis Mapper，负责切片写入、关键词检索和按文档 ID 查询。
+ */
 
 @Mapper
 public interface RagChunkMapper {

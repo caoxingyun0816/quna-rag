@@ -9,6 +9,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * 基于规则的轻量重排器，结合标题、正文、项目模块匹配给候选结果追加相关性加分。
+ */
 @Component
 public class RuleBasedReranker implements RagReranker {
     @Override

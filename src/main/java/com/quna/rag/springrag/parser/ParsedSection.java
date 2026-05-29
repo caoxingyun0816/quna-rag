@@ -2,6 +2,9 @@ package com.quna.rag.springrag.parser;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+/**
+ * 解析阶段的段落模型，表示一个标题路径及其对应正文。
+ */
 
 @Data
 @AllArgsConstructor

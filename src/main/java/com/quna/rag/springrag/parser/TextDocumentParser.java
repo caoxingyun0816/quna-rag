@@ -3,6 +3,9 @@ package com.quna.rag.springrag.parser;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 纯文本解析器，处理 .txt/.log 等文本文件并按标题规则尝试拆分段落。
+ */
 @Component
 public class TextDocumentParser extends AbstractTextDocumentParser {
     @Override

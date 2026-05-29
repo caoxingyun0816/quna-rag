@@ -2,6 +2,9 @@ package com.quna.rag.springrag.parser;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
+/**
+ * AsciiDoc 文档解析器，将 .adoc/.asciidoc 文件按文本方式读取并保留标题结构。
+ */
 
 @Component
 public class AdocDocumentParser extends AbstractTextDocumentParser {

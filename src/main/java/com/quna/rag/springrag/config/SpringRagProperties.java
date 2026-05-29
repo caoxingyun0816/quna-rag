@@ -4,6 +4,9 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+/**
+ * Spring RAG 功能的集中配置入口，承接 application.yml 中 rag.springrag 前缀的检索、切片和集合参数。
+ */
 @Data
 @Component
 @ConfigurationProperties(prefix = "rag.springrag")

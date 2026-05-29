@@ -11,6 +11,9 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+/**
+ * 关键词检索器，基于 rag_chunk 表的全文索引召回候选切片。
+ */
 
 @Slf4j
 @Component
@@ -24,6 +27,7 @@ public class KeywordRetriever {
     public List<RagHit> retrieve(RagCollectionType collectionType, RagSearchRequest request, int topK) {
         List<RagChunkEntity> chunks;
         try {
+            // 优先使用 MySQL FULLTEXT；环境未建全文索引或分词异常时，降级为 LIKE 保证接口可用。
             chunks = chunkMapper.keywordSearch(collectionType.getCode(), request.getQuestion(), request.getProject(),
                     request.getModule(), request.getDocType(), topK);
         } catch (Exception e) {
@@ -38,6 +42,7 @@ public class KeywordRetriever {
     }
 
     private RagHit toHit(RagChunkEntity chunk) {
+        // 关键词检索来自数据库切片表，需要补齐 metadata，保持和向量检索返回结构一致。
         Map<String, Object> metadata = metadata(chunk);
         RagHit hit = new RagHit();
         hit.setChunkId(chunk.getId());

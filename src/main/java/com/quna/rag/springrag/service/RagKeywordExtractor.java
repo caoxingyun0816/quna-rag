@@ -13,6 +13,9 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+/**
+ * 关键词抽取器，从切片正文中提取英文标识符、接口路径和中文关键词，供全文索引检索使用。
+ */
 
 @Component
 public class RagKeywordExtractor {

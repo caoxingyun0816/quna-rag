@@ -3,6 +3,9 @@ package com.quna.rag.springrag.parser;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+/**
+ * 文档解析器选择器，根据上传文件名从多个解析器中找到最合适的实现。
+ */
 
 @Component
 public class DocumentParserResolver {

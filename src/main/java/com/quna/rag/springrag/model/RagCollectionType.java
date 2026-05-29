@@ -2,6 +2,9 @@ package com.quna.rag.springrag.model;
 
 import java.util.Arrays;
 import java.util.List;
+/**
+ * 知识库集合枚举，限定当前系统支持的业务文档和技术文档两个集合。
+ */
 
 public enum RagCollectionType {
     BUSINESS_DOC("business_doc", "rag_business_doc", "业务文档"),

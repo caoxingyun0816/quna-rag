@@ -10,6 +10,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * RAG 问答服务，先检索相关切片，再组织提示词调用大模型生成回答。
+ */
 @Service
 public class SpringRagAskService {
     private final SpringRagSearchService searchService;

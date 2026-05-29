@@ -1,6 +1,9 @@
 package com.quna.rag.springrag.model;
 
 import lombok.Data;
+/**
+ * 检索请求模型，包含问题、集合、项目模块过滤条件以及 TopK 等可调参数。
+ */
 
 @Data
 public class RagSearchRequest {

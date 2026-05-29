@@ -8,6 +8,9 @@ import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * Word 文档解析器，使用 POI 提取段落和表格内容，保留表格的文本结构。
+ */
 @Component
 public class WordDocumentParser extends AbstractTextDocumentParser {
     @Override

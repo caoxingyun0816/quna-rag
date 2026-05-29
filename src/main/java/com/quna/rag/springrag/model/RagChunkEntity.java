@@ -3,6 +3,9 @@ package com.quna.rag.springrag.model;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+/**
+ * 文档切片数据库实体，对应 rag_chunk 表，用于关键词检索和切片审计。
+ */
 
 @Data
 public class RagChunkEntity {

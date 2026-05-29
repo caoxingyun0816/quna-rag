@@ -6,6 +6,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+/**
+ * RAG 元数据构建器，统一生成写入向量库和数据库时使用的文档级、切片级元信息。
+ */
 
 @Component
 public class RagMetadataBuilder {

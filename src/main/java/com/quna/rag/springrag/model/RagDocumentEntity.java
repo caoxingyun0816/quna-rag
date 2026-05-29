@@ -3,6 +3,9 @@ package com.quna.rag.springrag.model;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+/**
+ * 文档主表实体，对应 rag_document 表，记录上传文件、归属集合和解析状态。
+ */
 
 @Data
 public class RagDocumentEntity {

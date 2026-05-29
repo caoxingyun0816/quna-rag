@@ -2,6 +2,9 @@ package com.quna.rag.springrag.parser;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
+/**
+ * Markdown 文档解析器，读取 .md/.markdown 文件并保留标题层级供后续语义切片使用。
+ */
 
 @Component
 public class MarkdownDocumentParser extends AbstractTextDocumentParser {

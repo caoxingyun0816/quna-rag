@@ -4,6 +4,9 @@ import com.quna.rag.springrag.model.RagDocumentEntity;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;
+/**
+ * 文档主表 MyBatis Mapper，负责上传文档记录的新增、去重查询和列表查询。
+ */
 
 @Mapper
 public interface RagDocumentMapper {

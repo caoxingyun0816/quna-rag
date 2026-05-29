@@ -11,6 +11,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * RAG 检索服务，对外提供混合召回、重排、阈值过滤后的统一搜索结果。
+ */
 @Service
 public class SpringRagSearchService {
     private final HybridRetriever hybridRetriever;

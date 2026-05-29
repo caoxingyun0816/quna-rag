@@ -21,6 +21,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * RAG 入库服务，串联文件校验、解析、切片、去重、数据库保存和向量库写入。
+ */
 @Service
 public class SpringRagIngestService {
     private final DocumentParserResolver parserResolver;
@@ -62,14 +65,14 @@ public class SpringRagIngestService {
     public RagUploadResult upload(MultipartFile file, String collectionCode, String project,
                                   String module, String docType, String tags) throws Exception {
 
+        // 入库第一步先做基础校验，避免空文件、大文件或不支持格式进入解析链路。
         fileValidationService.validateFile(file, MAX_FILE_SIZE, "文件");
-
-        // 2. 验证文件类型
         String contentType = contentTypeDetectionService.detectContentType(file);
 
         String filename = file.getOriginalFilename() == null ? "unknown" : file.getOriginalFilename();
         validateContentType(contentType, filename);
 
+        // 根据目标集合选择解析器；解析后的全文 hash 用于同一集合内的文档级去重。
         RagCollectionType collectionType = RagCollectionType.fromCode(collectionCode);
         DocumentParser parser = parserResolver.resolve(filename);
         ParsedDocument parsedDocument = parser.parse(file);
@@ -84,6 +87,8 @@ public class SpringRagIngestService {
             return new RagUploadResult(existing.getId(), existing.getCollectionCode(),
                     existing.getChunkCount(), existing.getStatus(), true, existing.getContentHash());
         }
+
+        // 先落文档主表，再落切片表；切片 ID 会写入向量库 metadata，便于检索结果回查来源。
         Map<String, Object> docMetadata = metadataBuilder.documentMetadata(collectionType, parsedDocument, project, module, docType, tags);
 
         RagDocumentEntity document = new RagDocumentEntity();
@@ -126,6 +131,7 @@ public class SpringRagIngestService {
             vectorDocuments.add(new Document(embeddingText, metadataBuilder.sanitize(chunkMetadata)));
         }
 
+        // 数据库保存原始切片，向量库保存面向语义检索的 embedding 文本，两边通过 chunkId/docId 对齐。
         if (!vectorDocuments.isEmpty()) {
             vectorStoreRouter.get(collectionType).add(vectorDocuments);
         }

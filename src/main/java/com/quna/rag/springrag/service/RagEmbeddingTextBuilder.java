@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+/**
+ * 向量化文本构建器，在原文过长时抽取标题、关键词、路由和字段，控制 Embedding 输入长度。
+ */
 
 @Component
 public class RagEmbeddingTextBuilder {
@@ -29,6 +32,7 @@ public class RagEmbeddingTextBuilder {
             return withTitle(titlePath, text);
         }
 
+        // Embedding 接口有输入长度限制，超长切片保留标题、关键词、接口路由和字段，再拼接首尾摘要。
         List<String> parts = new ArrayList<>();
         add(parts, "标题：" + value(titlePath));
         add(parts, "关键词：" + value(keywords));

@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+/**
+ * 标题感知切片器，优先按 Markdown 标题和接口文档结构保持语义完整，再对超长内容做兜底切分。
+ */
 
 @Component
 public class HeadingAwareTextSplitter implements RagDocumentSplitter {
@@ -30,6 +33,7 @@ public class HeadingAwareTextSplitter implements RagDocumentSplitter {
         if (content.isBlank()) {
             return List.of();
         }
+        // Markdown 技术文档优先走标题感知切片，普通文本再退回 Spring AI 的 token 切分。
         if (isMarkdown(document)) {
             return splitMarkdown(document, collectionType, metadata, content);
         }
@@ -46,6 +50,7 @@ public class HeadingAwareTextSplitter implements RagDocumentSplitter {
             if (text.length() < properties.getChunk().getMinLength()) {
                 continue;
             }
+            // 接口说明、代码块、表格等语义单元尽量整段保留；只有明显超长时才继续细分。
             if (shouldKeepWhole(section, collectionType)) {
                 chunks.add(new RagChunk(chunks.size() + 1, section.titlePath(), text));
                 continue;
@@ -74,6 +79,7 @@ public class HeadingAwareTextSplitter implements RagDocumentSplitter {
         StringBuilder current = new StringBuilder();
         boolean inCodeBlock = false;
 
+        // 代码块中的 # 可能只是注释或示例内容，不能当作 Markdown 标题切开。
         for (String line : content.split("\\R", -1)) {
             String trimmed = line.trim();
             if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
