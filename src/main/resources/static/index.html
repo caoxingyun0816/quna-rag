@@ -140,30 +140,20 @@
     <div class="login-page" v-if="!token">
         <div class="login-panel">
             <div class="login-title">趣拿AI自动化平台</div>
-            <div class="login-subtitle">{{isRegister ? '创建平台账号' : '账号登录'}}</div>
+            <div class="login-subtitle">趣拿统一账号登录</div>
 
             <label class="form-label">账号</label>
             <input class="form-input" v-model="form.username" placeholder="请输入账号">
             <label class="form-label">密码</label>
             <input class="form-input" v-model="form.password" :placeholder="isRegister ? '请输入密码' : '请输入密码'" type="password">
-            <template v-if="isRegister">
-                <label class="form-label">确认密码</label>
-                <input class="form-input" v-model="form.confirmPassword" placeholder="请再次输入密码" type="password">
-            </template>
-
             <div class="captcha-box" @mousedown="onCaptchaStart">
                 <span class="captcha-text">{{captchaText}}</span>
                 <div class="captcha-slider" :style="{left: captchaX + 'px'}" :class="{'verified': captchaVerified}">›</div>
             </div>
 
             <button class="primary-btn login-submit" @click="handleSubmit" :disabled="!captchaVerified">
-                {{isRegister ? '注册' : '登录'}}
+                登录
             </button>
-
-            <div class="login-switch">
-                {{isRegister ? '已有账号？' : '没有账号？'}}
-                <a @click="toggleMode">{{isRegister ? '立即登录' : '立即注册'}}</a>
-            </div>
         </div>
     </div>
 
@@ -791,9 +781,18 @@
         components: { TreeItem },
         data() {
             return {
-                token: localStorage.getItem('token'),
+                ssoBaseUrl: 'https://dev.zzss.com/auc',
+                ssoApp: 'Tm60z4',
+                ssoTestHeaders: {
+                    'QZ-Access-User': 'test',
+                    'QZ-Access-Sign': 'test',
+                    'QZ-Session-Token': 'test'
+                },
+                token: localStorage.getItem('accessToken') || '',
+                refreshToken: localStorage.getItem('refreshToken') || '',
+                refreshingPromise: null,
                 isRegister: false,
-                form: { username: localStorage.getItem('username') || '', password: '', confirmPassword: '' },
+                form: { username: localStorage.getItem('userName') || '', password: '', confirmPassword: '' },
                 menus: [
                     {
                         key: 'documents',
@@ -867,30 +866,39 @@
             this.restoreRoute();
             window.addEventListener('popstate', this.restoreRoute);
 
-            if (this.token) {
-                axios.defaults.headers.common['Authorization'] = 'Bearer ' + this.token;
-                this.getList();
-                this.loadDocList();
-                this.loadDocSettings();
-                this.loadPermissions();
-                this.loadTree();
-            }
+            axios.defaults.headers.common['app'] = this.ssoApp;
+            this.applyAuthHeaders();
 
             const vm = this;
             axios.interceptors.response.use(
                 response => response,
-                error => {
-                    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-                        const msg = error.response.data?.msg || '登录已过期';
-                        vm.token = null;
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('username');
-                        delete axios.defaults.headers.common['Authorization'];
-                        alert(msg + '，请重新登录');
+                async error => {
+                    const response = error.response;
+                    const originalRequest = error.config || {};
+                    if (response && response.status === 401 && !originalRequest._retry && !originalRequest._skipAuthRefresh && vm.refreshToken) {
+                        originalRequest._retry = true;
+                        try {
+                            await vm.refreshAccessToken();
+                            originalRequest.headers = originalRequest.headers || {};
+                            originalRequest.headers.Authorization = 'Bearer ' + vm.token;
+                            originalRequest.headers.app = vm.ssoApp;
+                            return axios(originalRequest);
+                        } catch (refreshError) {
+                            vm.clearAuth();
+                            alert('登录已过期，请重新登录');
+                            return Promise.reject(refreshError);
+                        }
+                    }
+                    if (response && response.status === 403) {
+                        alert(response.data?.msg || '无访问权限');
                     }
                     return Promise.reject(error);
                 }
             );
+
+            if (this.token) {
+                this.loadInitialData();
+            }
         },
         beforeUnmount() {
             window.removeEventListener('popstate', this.restoreRoute);
@@ -963,31 +971,27 @@
                     alert('请填写完整信息');
                     return;
                 }
-                if (this.isRegister) {
-                    if (this.form.password !== this.form.confirmPassword) {
-                        alert('两次密码输入不一致');
-                        return;
-                    }
-                    await this.register();
-                } else {
-                    await this.login();
-                }
+                await this.login();
             },
             async login() {
                 try {
                     this.loading = true;
-                    let res = await axios.post('/api/user/login', this.form);
-                    if (res.data.code === 200) {
-                        this.token = res.data.token;
-                        localStorage.setItem('token', this.token);
-                        localStorage.setItem('username', this.form.username);
-                        axios.defaults.headers.common['Authorization'] = 'Bearer ' + this.token;
-                        this.loadDocList();
-                        this.loadDocSettings();
-                        this.loadPermissions();
-                        this.loadTree();
+                    const res = await axios.post(`${this.ssoBaseUrl}/api/sso/login`, {
+                        username: this.form.username,
+                        password: this.form.password
+                    }, {
+                        headers: {
+                            app: this.ssoApp,
+                            'Content-Type': 'application/json'
+                        },
+                        _skipAuthRefresh: true
+                    });
+                    const loginData = this.unwrapSsoData(res.data);
+                    if (this.isSsoSuccess(res.data) && loginData.accessToken && loginData.refreshToken) {
+                        this.saveAuth(loginData);
+                        this.loadInitialData();
                     } else {
-                        alert(res.data.msg || '登录失败');
+                        alert(res.data?.msg || res.data?.message || '登录失败');
                         this.resetCaptcha();
                     }
                 } catch (e) {
@@ -996,6 +1000,76 @@
                 } finally {
                     this.loading = false;
                 }
+            },
+            async refreshAccessToken() {
+                if (this.refreshingPromise) {
+                    return this.refreshingPromise;
+                }
+                this.refreshingPromise = axios.post(`${this.ssoBaseUrl}/api/sso/token/refresh`, {
+                    refreshToken: this.refreshToken
+                }, {
+                    headers: {
+                        app: this.ssoApp,
+                        Authorization: 'Bearer ' + this.refreshToken,
+                        'Content-Type': 'application/json'
+                    },
+                    _skipAuthRefresh: true
+                }).then(res => {
+                    const data = this.unwrapSsoData(res.data);
+                    if (!this.isSsoSuccess(res.data) || !data.accessToken) {
+                        throw new Error(res.data?.msg || res.data?.message || '刷新Token失败');
+                    }
+                    this.token = data.accessToken;
+                    if (data.refreshToken) {
+                        this.refreshToken = data.refreshToken;
+                    }
+                    localStorage.setItem('accessToken', this.token);
+                    localStorage.setItem('refreshToken', this.refreshToken);
+                    this.applyAuthHeaders();
+                    return this.token;
+                }).finally(() => {
+                    this.refreshingPromise = null;
+                });
+                return this.refreshingPromise;
+            },
+            saveAuth(data) {
+                this.token = data.accessToken;
+                this.refreshToken = data.refreshToken;
+                this.form.username = data.userName || this.form.username;
+                localStorage.setItem('accessToken', this.token);
+                localStorage.setItem('refreshToken', this.refreshToken);
+                localStorage.setItem('userName', this.form.username);
+                this.applyAuthHeaders();
+            },
+            clearAuth() {
+                this.token = '';
+                this.refreshToken = '';
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('userName');
+                delete axios.defaults.headers.common['Authorization'];
+            },
+            applyAuthHeaders() {
+                axios.defaults.headers.common['app'] = this.ssoApp;
+                Object.entries(this.ssoTestHeaders).forEach(([key, value]) => {
+                    axios.defaults.headers.common[key] = value;
+                });
+                if (this.token) {
+                    axios.defaults.headers.common['Authorization'] = 'Bearer ' + this.token;
+                }
+            },
+            loadInitialData() {
+                this.getList();
+                this.loadDocList();
+                this.loadDocSettings();
+                this.loadPermissions();
+                this.loadTree();
+            },
+            isSsoSuccess(body) {
+                return body?.code === 1 || body?.code === 200 || body?.success === true || body?.respCode === 1;
+            },
+            unwrapSsoData(body) {
+                return body?.data || body?.result || body || {};
             },
             async register() {
                 try {
@@ -1037,7 +1111,6 @@
                 };
             },
             async loadDocList() {
-                if (!this.token) return;
                 try {
                     const params = { ...this.appliedDocQuery };
                     let res = await axios.get('/api/doc/list', { params });
@@ -1047,7 +1120,6 @@
                 }
             },
             async loadDocSettings() {
-                if (!this.token) return;
                 try {
                     const chunkRes = await axios.get('/api/doc/chunk-config');
                     this.chunkConfig = { ...this.chunkConfig, ...(chunkRes.data.data || {}) };
@@ -1110,7 +1182,7 @@
                     this.isStreaming = true;
                     const encodedQuestion = encodeURIComponent(userQuestion);
                     const encodedToken = encodeURIComponent(this.token);
-                    const eventSource = new EventSource(`/api/rag/ask-stream?q=${encodedQuestion}&token=${encodedToken}`);
+                    const eventSource = new EventSource(`/api/rag/ask-stream?q=${encodedQuestion}&accessToken=${encodedToken}&accessUser=test&accessSign=test&sessionToken=test`);
 
                     eventSource.onmessage = (event) => {
                         fullAnswer += event.data;
@@ -1273,7 +1345,6 @@
                 }
             },
             async loadPermissions() {
-                if (!this.token) return;
                 try {
                     let res = await axios.get('/api/doc/permissions');
                     this.permissionList = res.data.data || [];
