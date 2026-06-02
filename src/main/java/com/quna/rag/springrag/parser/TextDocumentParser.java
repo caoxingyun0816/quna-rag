@@ -1,5 +1,6 @@
 package com.quna.rag.springrag.parser;
 
+import com.quna.rag.springrag.model.ParsedDocument;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 

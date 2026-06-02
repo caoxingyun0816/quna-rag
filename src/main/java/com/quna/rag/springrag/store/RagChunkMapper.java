@@ -57,14 +57,16 @@ public interface RagChunkMapper {
             SELECT c.id, c.doc_id, c.collection_code, c.chunk_index, c.title_path, c.content,
                    c.content_hash, c.keywords, c.create_time,
                    d.filename, d.file_type, d.project, d.module, d.doc_type, d.tags,
-                   0.1 AS keyword_score
+                   2.0 AS keyword_score
             FROM rag_chunk c
             JOIN rag_document d ON d.id = c.doc_id
             WHERE c.collection_code = #{collectionCode}
             <if test="project != null and project != ''">AND d.project = #{project}</if>
             <if test="module != null and module != ''">AND d.module = #{module}</if>
             <if test="docType != null and docType != ''">AND d.doc_type = #{docType}</if>
-            AND (c.content LIKE CONCAT('%', #{query}, '%') OR c.keywords LIKE CONCAT('%', #{query}, '%'))
+            AND (c.title_path LIKE CONCAT('%', #{query}, '%')
+                 OR c.content LIKE CONCAT('%', #{query}, '%')
+                 OR c.keywords LIKE CONCAT('%', #{query}, '%'))
             ORDER BY c.id DESC
             LIMIT #{limit}
             </script>
@@ -76,4 +78,49 @@ public interface RagChunkMapper {
                                     @Param("module") String module,
                                     @Param("docType") String docType,
                                     @Param("limit") int limit);
+
+    @Select("""
+            <script>
+            SELECT c.id, c.doc_id, c.collection_code, c.chunk_index, c.title_path, c.content,
+                   c.content_hash, c.keywords, c.create_time,
+                   d.filename, d.file_type, d.project, d.module, d.doc_type, d.tags,
+                   1.3 AS keyword_score
+            FROM rag_chunk c
+            JOIN rag_document d ON d.id = c.doc_id
+            WHERE c.collection_code = #{collectionCode}
+            <if test="project != null and project != ''">AND d.project = #{project}</if>
+            <if test="module != null and module != ''">AND d.module = #{module}</if>
+            <if test="docType != null and docType != ''">AND d.doc_type = #{docType}</if>
+            <if test="terms != null and terms.size() > 0">
+            AND (
+                <foreach collection="terms" item="term" separator=" OR ">
+                    c.title_path LIKE CONCAT('%', #{term}, '%')
+                    OR c.content LIKE CONCAT('%', #{term}, '%')
+                    OR c.keywords LIKE CONCAT('%', #{term}, '%')
+                </foreach>
+            )
+            </if>
+            ORDER BY c.id DESC
+            LIMIT #{limit}
+            </script>
+            """)
+    @ResultMap("ragChunkMap")
+    List<RagChunkEntity> expandedSearch(@Param("collectionCode") String collectionCode,
+                                        @Param("terms") List<String> terms,
+                                        @Param("project") String project,
+                                        @Param("module") String module,
+                                        @Param("docType") String docType,
+                                        @Param("limit") int limit);
+
+    @Select("""
+            SELECT id, doc_id, collection_code, chunk_index, title_path, content, content_hash, keywords, create_time
+            FROM rag_chunk
+            WHERE doc_id = #{docId}
+            ORDER BY chunk_index ASC
+            """)
+    @ResultMap("ragChunkMap")
+    List<RagChunkEntity> selectByDocId(@Param("docId") Long docId);
+
+    @Delete("DELETE FROM rag_chunk WHERE doc_id = #{docId}")
+    int deleteByDocId(@Param("docId") Long docId);
 }

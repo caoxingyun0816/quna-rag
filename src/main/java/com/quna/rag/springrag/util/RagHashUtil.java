@@ -11,9 +11,13 @@ public final class RagHashUtil {
     }
 
     public static String sha256(String text) {
+        return sha256((text == null ? "" : text).getBytes(StandardCharsets.UTF_8));
+    }
+
+    public static String sha256(byte[] bytes) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] encoded = digest.digest((text == null ? "" : text).getBytes(StandardCharsets.UTF_8));
+            byte[] encoded = digest.digest(bytes == null ? new byte[0] : bytes);
             StringBuilder sb = new StringBuilder();
             for (byte b : encoded) {
                 sb.append(String.format("%02x", b));

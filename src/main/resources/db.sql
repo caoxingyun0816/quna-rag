@@ -75,6 +75,7 @@ CREATE TABLE `rag_document` (
                                 `status` varchar(30) DEFAULT 'INDEXED',
                                 `chunk_count` int DEFAULT 0,
                                 `file_size` bigint DEFAULT NULL,
+                                `file_url` varchar(1000) DEFAULT NULL,
                                 `content_hash` varchar(64) DEFAULT NULL,
                                 `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
                                 `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -98,6 +99,28 @@ CREATE TABLE `rag_chunk` (
                              KEY `idx_rag_chunk_doc` (`doc_id`),
                              KEY `idx_rag_chunk_collection` (`collection_code`),
                              FULLTEXT KEY `ft_rag_chunk_content_keywords` (`content`, `keywords`)
+);
+
+CREATE TABLE `rag_split_config` (
+                                    `id` bigint NOT NULL AUTO_INCREMENT,
+                                    `collection_code` varchar(30) NOT NULL,
+                                    `chunk_size` int NOT NULL DEFAULT 800,
+                                    `chunk_overlap` int NOT NULL DEFAULT 100,
+                                    `min_length` int NOT NULL DEFAULT 80,
+                                    `markdown_soft_multiplier` int NOT NULL DEFAULT 2,
+                                    `markdown_hard_multiplier` int NOT NULL DEFAULT 8,
+                                    `markdown_atomic_heading_level` int NOT NULL DEFAULT 4,
+                                    `markdown_max_merge_sections` int NOT NULL DEFAULT 3,
+                                    `separators` varchar(500) DEFAULT NULL,
+                                    `protect_markdown_table` tinyint(1) NOT NULL DEFAULT 1,
+                                    `protect_code_fence` tinyint(1) NOT NULL DEFAULT 1,
+                                    `protect_api_section` tinyint(1) NOT NULL DEFAULT 1,
+                                    `protect_json_block` tinyint(1) NOT NULL DEFAULT 1,
+                                    `protect_sql_block` tinyint(1) NOT NULL DEFAULT 1,
+                                    `enabled` tinyint(1) NOT NULL DEFAULT 1,
+                                    `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                    PRIMARY KEY (`id`),
+                                    KEY `idx_rag_split_collection` (`collection_code`, `enabled`)
 );
 
 CREATE TABLE `chat_history` (

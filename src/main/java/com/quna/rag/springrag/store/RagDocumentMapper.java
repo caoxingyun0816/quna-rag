@@ -12,9 +12,9 @@ import java.util.List;
 public interface RagDocumentMapper {
     @Insert("""
             INSERT INTO rag_document(collection_code, filename, file_type, source, project, module, doc_type, tags,
-                                     permission_scope, visible_roles, status, chunk_count, file_size, content_hash)
+                                     permission_scope, visible_roles, status, chunk_count, file_size, file_url, content_hash)
             VALUES(#{collectionCode}, #{filename}, #{fileType}, #{source}, #{project}, #{module}, #{docType}, #{tags},
-                   #{permissionScope}, #{visibleRoles}, #{status}, #{chunkCount}, #{fileSize}, #{contentHash})
+                   #{permissionScope}, #{visibleRoles}, #{status}, #{chunkCount}, #{fileSize}, #{fileUrl}, #{contentHash})
             """)
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(RagDocumentEntity entity);
@@ -22,9 +22,21 @@ public interface RagDocumentMapper {
     @Update("UPDATE rag_document SET chunk_count=#{chunkCount}, status=#{status}, update_time=CURRENT_TIMESTAMP WHERE id=#{id}")
     int updateStatusAndChunkCount(@Param("id") Long id, @Param("status") String status, @Param("chunkCount") int chunkCount);
 
+    @Update("UPDATE rag_document SET status=#{status}, update_time=CURRENT_TIMESTAMP WHERE id=#{id}")
+    int updateStatus(@Param("id") Long id, @Param("status") String status);
+
     @Select("""
             SELECT id, collection_code, filename, file_type, source, project, module, doc_type, tags,
-                   permission_scope, visible_roles, status, chunk_count, file_size, content_hash, create_time, update_time
+                   permission_scope, visible_roles, status, chunk_count, file_size, file_url, content_hash, create_time, update_time
+            FROM rag_document
+            WHERE id = #{id}
+            """)
+    @ResultMap("ragDocMap")
+    RagDocumentEntity selectById(@Param("id") Long id);
+
+    @Select("""
+            SELECT id, collection_code, filename, file_type, source, project, module, doc_type, tags,
+                   permission_scope, visible_roles, status, chunk_count, file_size, file_url, content_hash, create_time, update_time
             FROM rag_document
             WHERE collection_code = #{collectionCode}
               AND content_hash = #{contentHash}
@@ -38,7 +50,7 @@ public interface RagDocumentMapper {
     @Select("""
             <script>
             SELECT id, collection_code, filename, file_type, source, project, module, doc_type, tags,
-                   permission_scope, visible_roles, status, chunk_count, file_size, content_hash, create_time, update_time
+                   permission_scope, visible_roles, status, chunk_count, file_size, file_url, content_hash, create_time, update_time
             FROM rag_document
             WHERE 1=1
             <if test="collectionCode != null and collectionCode != ''">AND collection_code = #{collectionCode}</if>
@@ -56,6 +68,7 @@ public interface RagDocumentMapper {
             @Result(column = "visible_roles", property = "visibleRoles"),
             @Result(column = "chunk_count", property = "chunkCount"),
             @Result(column = "file_size", property = "fileSize"),
+            @Result(column = "file_url", property = "fileUrl"),
             @Result(column = "content_hash", property = "contentHash"),
             @Result(column = "create_time", property = "createTime"),
             @Result(column = "update_time", property = "updateTime")
@@ -64,4 +77,7 @@ public interface RagDocumentMapper {
                                        @Param("project") String project,
                                        @Param("module") String module,
                                        @Param("docType") String docType);
+
+    @Delete("DELETE FROM rag_document WHERE id = #{id}")
+    int deleteById(@Param("id") Long id);
 }

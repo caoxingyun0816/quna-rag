@@ -1,7 +1,7 @@
 package com.quna.rag.springrag.metadata;
 
 import com.quna.rag.springrag.model.RagCollectionType;
-import com.quna.rag.springrag.parser.ParsedDocument;
+import com.quna.rag.springrag.model.ParsedDocument;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;

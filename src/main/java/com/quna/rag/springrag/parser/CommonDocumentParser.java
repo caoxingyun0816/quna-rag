@@ -1,6 +1,10 @@
 package com.quna.rag.springrag.parser;
 
+import com.quna.rag.common.QunaRuntimeException;
+import com.quna.rag.springrag.model.ParsedDocument;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.extractor.ExtractorFactory;
+import org.apache.poi.extractor.POITextExtractor;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.metadata.Metadata;
@@ -9,82 +13,86 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
-import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 import org.xml.sax.SAXException;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 
 /**
- * 通用文档解析服务
- * 使用 Apache Tika 解析多种文档格式，提取文本内容
+ * Tika 自动解析器，POI 自动解析器 通用解析兜底实现。
  */
 @Slf4j
-@Service
-public class DocumentParseService {
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class CommonDocumentParser extends AbstractTextDocumentParser {
 
-    private static final int MAX_TEXT_LENGTH = 5 * 1024 * 1024; // 5MB
+    @Autowired
+    private TextCleaningService textCleaningService;
 
-    private final TextCleaningService textCleaningService;
+    private static final int MAX_TEXT_LENGTH = 50 * 1024 * 1024;
 
-    public DocumentParseService(TextCleaningService textCleaningService) {
-        this.textCleaningService = textCleaningService;
+    private static final Set<String> DOC_SUFFIX = new HashSet<>(Arrays.asList(".txt",".md",".pdf"));
+
+    private static final Set<String> FILE_SUFFIX = new HashSet<>(Arrays.asList(".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls"));
+
+
+    @Override
+    public boolean supports(String filename) {
+        String name = filename == null ? "" : filename.toLowerCase(Locale.ROOT);
+        return FILE_SUFFIX.stream().anyMatch(name::endsWith) || DOC_SUFFIX.stream().anyMatch(name::endsWith);
     }
 
-    /**
-     * 解析上传的文件，提取文本内容
-     *
-     * @param file 上传的文件（支持PDF、DOCX、DOC、TXT、MD等）
-     * @return 提取的文本内容
-     */
-    public String parseContent(MultipartFile file) {
+
+    @Override
+    public ParsedDocument parse(MultipartFile file) throws Exception {
+
         String fileName = file.getOriginalFilename();
         log.info("开始解析文件: {}", fileName);
-
         // 处理空文件
         if (file.isEmpty() || file.getSize() == 0) {
             log.warn("文件为空: {}", fileName);
-            return "";
+            throw new QunaRuntimeException("文件为空");
         }
 
-        try (InputStream inputStream = file.getInputStream()) {
-            String content = parseContent(inputStream);
-            String cleanedContent = textCleaningService.cleanText(content);
-            log.info("文件解析成功，提取文本长度: {} 字符", cleanedContent.length());
-            return cleanedContent;
-        } catch (IOException | TikaException | SAXException e) {
-            log.error("文件解析失败: {}", e.getMessage(), e);
-            return  "";
+        String text;
+        if (DOC_SUFFIX.stream().anyMatch(fileName::endsWith)) {
+            text = parseDocContent(file.getInputStream());
+        } else {
+            text = parsePoiDocument(file);
         }
+        return fromText(file, text, false);
     }
 
+
     /**
-     * 解析字节数组形式的文件内容
+     * 使用 POI 自动解析器解析文件
      *
-     * @param fileBytes 文件字节数组
-     * @param fileName  原始文件名（用于日志）
-     * @return 提取的文本内容
+     * @param file 文件对象
+     * @return 解析结果
      */
-    public String parseContent(byte[] fileBytes, String fileName) {
-        log.info("开始解析文件（从字节数组）: {}", fileName);
+    private String parsePoiDocument(MultipartFile file) {
+        String text;
+        try (InputStream inputStream = file.getInputStream()) {
+            POITextExtractor extractor = ExtractorFactory.createExtractor(inputStream);
+            String content = extractor.getText();
 
-        // 处理空文件
-        if (fileBytes == null || fileBytes.length == 0) {
-            log.warn("文件字节数组为空: {}", fileName);
-            return "";
-        }
-
-        try (InputStream inputStream = new ByteArrayInputStream(fileBytes)) {
-            String content = parseContent(inputStream);
             String cleanedContent = textCleaningService.cleanText(content);
             log.info("文件解析成功，提取文本长度: {} 字符", cleanedContent.length());
-            return cleanedContent;
-        } catch (IOException | TikaException | SAXException e) {
+            text = cleanedContent;
+        } catch (Exception e) {
             log.error("文件解析失败: {}", e.getMessage(), e);
-            return "";
+            text = "";
         }
+        return text;
     }
 
     /**
@@ -102,7 +110,7 @@ public class DocumentParseService {
      * @throws TikaException   Tika 解析异常
      * @throws SAXException    SAX 解析异常
      */
-    private String parseContent(InputStream inputStream) throws IOException, TikaException, SAXException {
+    private String parseDocContent(InputStream inputStream) throws IOException, TikaException, SAXException {
         // 1. 创建自动检测解析器
         AutoDetectParser parser = new AutoDetectParser();
 
@@ -134,4 +142,6 @@ public class DocumentParseService {
         // 9. 返回提取的文本内容
         return handler.toString();
     }
+
+
 }

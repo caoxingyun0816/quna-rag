@@ -15,4 +15,5 @@ public class RagUploadResult {
     private String status;
     private Boolean duplicate;
     private String contentHash;
+    private String fileUrl;
 }

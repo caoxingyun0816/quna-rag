@@ -28,6 +28,7 @@ public class RagHit {
     private double score;
     private boolean vectorHit;
     private boolean keywordHit;
+    private boolean exactKeywordHit;
     @JsonIgnore
     private Map<String, Object> metadata = new LinkedHashMap<>();
 }

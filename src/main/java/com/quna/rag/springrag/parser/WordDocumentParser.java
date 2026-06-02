@@ -1,5 +1,6 @@
 package com.quna.rag.springrag.parser;
 
+import com.quna.rag.springrag.model.ParsedDocument;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFTable;

@@ -1,4 +1,4 @@
-package com.quna.rag.springrag.parser;
+package com.quna.rag.springrag.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

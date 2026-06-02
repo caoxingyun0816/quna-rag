@@ -21,7 +21,11 @@ import java.util.stream.Collectors;
 public class RagKeywordExtractor {
     private static final Pattern TOKEN_PATTERN = Pattern.compile("[a-zA-Z][a-zA-Z0-9_./\\-]{1,}|[\\u4e00-\\u9fa5]{2,}");
     private static final Pattern CHINESE_PATTERN = Pattern.compile("[\\u4e00-\\u9fa5]+");
+    private static final Pattern QUOTED_CHINESE_PHRASE = Pattern.compile("[\"“”']([\\u4e00-\\u9fa5]{2,12})[\"“”']");
     private static final int MAX_KEYWORDS = 30;
+    private static final List<String> DOMAIN_PHRASES = List.of(
+            "强烈推荐", "不推荐", "推荐", "待定", "解析失败", "核心优势", "主要不足", "加分亮点", "潜在风险", "面试建议"
+    );
     private static final Set<String> STOPWORDS = Set.of(
             "the", "and", "for", "with", "this", "that", "from", "into", "public", "private", "class",
             "return", "void", "string", "true", "false", "null", "text", "java", "json", "yaml", "xml",
@@ -34,6 +38,7 @@ public class RagKeywordExtractor {
         }
         Matcher matcher = TOKEN_PATTERN.matcher(content);
         List<String> tokens = new ArrayList<>();
+        tokens.addAll(phraseCandidates(content));
         while (matcher.find()) {
             String token = normalize(matcher.group());
             if (CHINESE_PATTERN.matcher(token).matches() && token.length() > 6) {
@@ -54,6 +59,23 @@ public class RagKeywordExtractor {
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         return String.join(" ", keywords);
+    }
+
+    private List<String> phraseCandidates(String content) {
+        List<String> candidates = new ArrayList<>();
+        for (String phrase : DOMAIN_PHRASES) {
+            if (content.contains(phrase)) {
+                candidates.add(phrase);
+            }
+        }
+        Matcher matcher = QUOTED_CHINESE_PHRASE.matcher(content);
+        while (matcher.find()) {
+            String phrase = matcher.group(1);
+            if (isUseful(phrase)) {
+                candidates.add(phrase);
+            }
+        }
+        return candidates;
     }
 
     private List<String> chineseCandidates(String text) {

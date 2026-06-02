@@ -48,9 +48,25 @@ public class HybridRetriever {
             }
             existing.setVectorHit(existing.isVectorHit() || hit.isVectorHit());
             existing.setKeywordHit(existing.isKeywordHit() || hit.isKeywordHit());
+            existing.setExactKeywordHit(existing.isExactKeywordHit() || hit.isExactKeywordHit());
             existing.setVectorScore(Math.max(existing.getVectorScore(), hit.getVectorScore()));
             existing.setKeywordScore(Math.max(existing.getKeywordScore(), hit.getKeywordScore()));
+            if (hit.isKeywordHit()) {
+                preferKeywordContent(existing, hit);
+            }
         }
+    }
+
+    private void preferKeywordContent(RagHit target, RagHit source) {
+        target.setContent(source.getContent());
+        target.setTitlePath(source.getTitlePath());
+        target.setFilename(source.getFilename());
+        target.setFileType(source.getFileType());
+        target.setProject(source.getProject());
+        target.setModule(source.getModule());
+        target.setDocType(source.getDocType());
+        target.setTags(source.getTags());
+        target.setChunkIndex(source.getChunkIndex());
     }
 
     private void score(RagHit hit) {
@@ -58,6 +74,9 @@ public class HybridRetriever {
         double score = hit.getVectorScore() * 0.6 + normalizeKeywordScore(hit.getKeywordScore()) * 0.4;
         if (hit.isVectorHit() && hit.isKeywordHit()) {
             score += 0.1;
+        }
+        if (hit.isExactKeywordHit()) {
+            score = Math.max(score, 0.75);
         }
         hit.setScore(score);
     }

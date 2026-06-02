@@ -3,10 +3,14 @@ package com.quna.rag.springrag.parser;
 import com.quna.rag.common.QunaExCode;
 import com.quna.rag.common.QunaRuntimeException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
@@ -16,9 +20,13 @@ import java.util.function.Predicate;
 @Slf4j
 @Service
 public class FileValidationService {
-    
+
+    private static final Set<String> FILE_SUFFIX = new HashSet<>(Arrays.asList(".txt",".md",".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls"));
+
+    public static final long MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
     /**
-     * 验证文件基本属性（是否为空、文件大小）
+     * 验证文件基本属性（是否为空、文件大小, 文件类型）
      *
      * @param file 上传的文件
      * @param maxSizeBytes 最大文件大小（字节）
@@ -33,6 +41,8 @@ public class FileValidationService {
         if (file.getSize() > maxSizeBytes) {
             throw new QunaRuntimeException(QunaExCode.ILLEGAL_REQ_PARAM, "文件大小超过限制");
         }
+
+        validateFileType(file.getOriginalFilename());
     }
     
     /**
@@ -124,5 +134,23 @@ public class FileValidationService {
                lowerContentType.contains("text/x-web-markdown") ||
                lowerContentType.contains("application/rtf");
     }
+
+    /**
+     * 验证文件类型
+     */
+    public void validateFileType(String fileName) {
+        String suffix = extension(fileName);
+
+        if (!FILE_SUFFIX.contains(suffix)) {
+            throw new QunaRuntimeException(QunaExCode.ILLEGAL_REQ_PARAM,
+                    String.format(String.format("不支持的文件类型[%s]，仅支持：%s", suffix, FILE_SUFFIX)));
+        }
+    }
+
+    public static String extension(String filename) {
+        int index = filename == null ? -1 : filename.lastIndexOf('.');
+        return index < 0 ? "" : filename.substring(index + 1).toLowerCase();
+    }
+
 }
 

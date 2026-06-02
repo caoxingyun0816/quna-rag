@@ -8,8 +8,10 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 向量检索器，基于 Spring AI VectorStore 从 Milvus 集合中召回语义相近切片。
@@ -25,7 +27,7 @@ public class VectorRetriever {
     public List<RagHit> retrieve(RagCollectionType collectionType, RagSearchRequest request, int topK) {
         // 过滤条件直接下推给 Milvus，避免跨项目、跨模块的向量结果被召回后再丢弃。
         SearchRequest.Builder builder = SearchRequest.builder()
-                .query(request.getQuestion())
+                .query(semanticQuery(request.getQuestion()))
                 .topK(topK)
                 .similarityThresholdAll();
         String filterExpression = filterExpression(request);
@@ -68,6 +70,32 @@ public class VectorRetriever {
         appendEquals(filter, "module", request.getModule());
         appendEquals(filter, "docType", request.getDocType());
         return filter.toString();
+    }
+
+    private String semanticQuery(String question) {
+        if (question == null || question.isBlank()) {
+            return "";
+        }
+        String text = question.trim();
+        Set<String> expansions = new LinkedHashSet<>();
+        addIfContains(expansions, text, "候选", "候选人", "简历", "招聘评估", "候选人评估", "匹配分析");
+        addIfContains(expansions, text, "简历", "候选人", "简历筛选", "简历评估", "学历", "工作年限", "当前职位");
+        addIfContains(expansions, text, "打分", "评分", "分数", "综合评分", "加权评分", "评分权重", "total_score", "score");
+        addIfContains(expansions, text, "评分", "打分", "分数", "综合评分", "加权评分", "评分权重", "total_score", "score");
+        addIfContains(expansions, text, "规则", "必要条件评分", "加分项", "扣分项", "分数段", "等级", "grade", "label");
+        addIfContains(expansions, text, "推荐", "强烈推荐", "不推荐", "recommend", "reject", "pending");
+        if (expansions.isEmpty()) {
+            return text;
+        }
+        return text + "\n\n相关语义：" + String.join(" ", expansions);
+    }
+
+    private void addIfContains(Set<String> expansions, String query, String trigger, String... values) {
+        if (!query.contains(trigger)) {
+            return;
+        }
+        expansions.add(trigger);
+        expansions.addAll(List.of(values));
     }
 
     private void appendEquals(StringBuilder filter, String key, String value) {

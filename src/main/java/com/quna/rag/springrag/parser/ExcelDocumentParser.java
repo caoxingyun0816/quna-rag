@@ -1,5 +1,6 @@
 package com.quna.rag.springrag.parser;
 
+import com.quna.rag.springrag.model.ParsedDocument;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
@@ -8,10 +9,10 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
+
 /**
  * Excel 文档解析器，将工作簿中的 Sheet 和单元格内容转换为 Markdown 表格风格文本。
  */
-
 @Component
 public class ExcelDocumentParser extends AbstractTextDocumentParser {
     @Override

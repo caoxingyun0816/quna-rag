@@ -65,6 +65,12 @@ public class SpringRagController extends BasicAction {
         return RestResponse.success(documentMapper.selectList(collectionCode, project, module, docType));
     }
 
+    @DeleteMapping("/doc/{docId}")
+    public RestResponse<Boolean> delete(@PathVariable Long docId) {
+        ingestService.deleteDocument(docId);
+        return RestResponse.success(true);
+    }
+
     @PostMapping("/search")
     public RestResponse<RagSearchResult> search(@RequestBody RagSearchRequest request) {
         return RestResponse.success(searchService.search(request));
