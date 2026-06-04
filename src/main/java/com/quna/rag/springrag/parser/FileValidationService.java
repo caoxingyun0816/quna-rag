@@ -149,7 +149,7 @@ public class FileValidationService {
 
     public static String extension(String filename) {
         int index = filename == null ? -1 : filename.lastIndexOf('.');
-        return index < 0 ? "" : filename.substring(index + 1).toLowerCase();
+        return index < 0 ? "" : filename.substring(index).toLowerCase();
     }
 
 }
