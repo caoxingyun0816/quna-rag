@@ -21,4 +21,12 @@ public class MilvusConfig {
                 .withPort(port)
                 .build());
     }
+
+    @Bean
+    public MilvusServiceClient ragMilvusServiceClient() {
+        return new MilvusServiceClient(ConnectParam.newBuilder()
+                .withHost(host)
+                .withPort(port)
+                .build());
+    }
 }

@@ -1,4 +1,4 @@
-package com.quna.rag.springrag.service;
+package com.quna.rag.service;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.model.OSSObject;
@@ -14,47 +14,44 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * RAG 文件 OSS 存储服务，负责上传原始文件并在异步解析时下载临时副本。
+ * RAG 原始文件存储服务，按 projectCode / 年 / 月 上传到 OSS。
  */
 @Service
-public class RagOssStorageService {
+public class RagFileStorageService {
     private final RagOssProperties properties;
     private final OSS ossClient;
 
-    public RagOssStorageService(RagOssProperties properties, OSS ossClient) {
+    public RagFileStorageService(RagOssProperties properties, OSS ossClient) {
         this.properties = properties;
         this.ossClient = ossClient;
     }
 
-    public StoredObject uploadToOss(String project, String filename, byte[] bytes) throws IOException {
-        validateConfig();
-        String objectKey = buildObjectKey(project, filename);
+    public StoredFile upload(String projectCode, String filename, byte[] bytes) throws IOException {
+        String objectKey = buildObjectKey(projectCode, filename);
         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes == null ? new byte[0] : bytes)) {
             ossClient.putObject(properties.getBucketName(), objectKey, inputStream);
         }
-        return new StoredObject(publicUrl(objectKey), objectKey);
+        return new StoredFile(publicUrl(objectKey), objectKey);
     }
 
     public Path downloadToTemp(String fileUrl, String filename) throws IOException {
         String objectKey = objectKeyFromUrl(fileUrl);
-        String suffix = extension(filename);
-        Path tempFile = Files.createTempFile("springrag-", suffix.isBlank() ? ".tmp" : "." + suffix);
+        Path tempFile = Files.createTempFile("rag-", suffix(filename));
         try (OSSObject object = ossClient.getObject(properties.getBucketName(), objectKey);
              InputStream inputStream = object.getObjectContent()) {
-             Files.copy(inputStream, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(inputStream, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         }
         return tempFile;
     }
 
-    private String buildObjectKey(String project, String filename) {
-        String safeProject = sanitizePathPart(project == null || project.isBlank() ? "default" : project);
-        String safeFilename = sanitizeFilename(filename);
+    private String buildObjectKey(String projectCode, String filename) {
+        String safeProject = sanitize(projectCode == null || projectCode.isBlank() ? "default" : projectCode);
         LocalDate now = LocalDate.now();
         return trimSlash(properties.getParentsFolderName())
                 + "/rag/" + safeProject
                 + "/" + now.getYear()
                 + "/" + pad(now.getMonthValue())
-                + "/" + UUID.randomUUID() + "-" + safeFilename;
+                + "/" + UUID.randomUUID() + "-" + sanitizeFilename(filename);
     }
 
     private String publicUrl(String objectKey) {
@@ -75,16 +72,19 @@ public class RagOssStorageService {
         if (index >= 0) {
             return fileUrl.substring(index + 1);
         }
-        throw new IllegalArgumentException("无法从文件 URL 解析 OSS objectKey: " + fileUrl);
+        throw new IllegalArgumentException("无法解析 OSS 文件地址: " + fileUrl);
     }
 
     private void validateConfig() {
-        if (isBlank(properties.getEndPoint())
-                || isBlank(properties.getAccessKeyId())
-                || isBlank(properties.getAccessKeySecret())
-                || isBlank(properties.getBucketName())) {
-            throw new IllegalStateException("OSS 配置不完整，请检查 oss.end-point/access-key-id/access-key-secret/bucket-name");
+        if (isBlank(properties.getEndPoint()) || isBlank(properties.getAccessKeyId())
+                || isBlank(properties.getAccessKeySecret()) || isBlank(properties.getBucketName())) {
+            throw new IllegalStateException("OSS 配置不完整");
         }
+    }
+
+    private String suffix(String filename) {
+        int index = filename == null ? -1 : filename.lastIndexOf('.');
+        return index < 0 ? ".tmp" : filename.substring(index);
     }
 
     private String sanitizeFilename(String filename) {
@@ -92,20 +92,12 @@ public class RagOssStorageService {
         return value.replaceAll("[\\\\/:*?\"<>|\\r\\n]+", "_");
     }
 
-    private String sanitizePathPart(String value) {
+    private String sanitize(String value) {
         return value.trim().replaceAll("[^a-zA-Z0-9_\\-\\u4e00-\\u9fa5]+", "_");
     }
 
-    private String extension(String filename) {
-        int index = filename == null ? -1 : filename.lastIndexOf('.');
-        return index < 0 ? "" : filename.substring(index + 1).replaceAll("[^a-zA-Z0-9]", "");
-    }
-
     private String trimSlash(String value) {
-        if (value == null || value.isBlank()) {
-            return "";
-        }
-        return value.replaceAll("^/+", "").replaceAll("/+$", "");
+        return value == null ? "" : value.replaceAll("^/+", "").replaceAll("/+$", "");
     }
 
     private String trimRightSlash(String value) {
@@ -124,6 +116,6 @@ public class RagOssStorageService {
         return value == null || value.isBlank();
     }
 
-    public record StoredObject(String fileUrl, String objectKey) {
+    public record StoredFile(String fileUrl, String objectKey) {
     }
 }

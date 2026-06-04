@@ -1,6 +1,8 @@
 package com.quna.rag.parser;
 
-import com.quna.rag.springrag.model.ParsedDocument;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -9,19 +11,20 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @Component("standardPdfDocumentParser")
 public class PdfDocumentParser implements DocumentParser {
-    private final com.quna.rag.springrag.parser.PdfDocumentParser delegate;
-
-    public PdfDocumentParser(com.quna.rag.springrag.parser.PdfDocumentParser delegate) {
-        this.delegate = delegate;
-    }
-
     @Override
     public boolean supports(String filename) {
-        return delegate.supports(filename);
+        return filename != null && filename.toLowerCase().endsWith(".pdf");
     }
 
     @Override
     public ParsedDocument parse(MultipartFile file) throws Exception {
-        return delegate.parse(file);
+        try (PDDocument document = Loader.loadPDF(file.getBytes())) {
+            String text = new PDFTextStripper().getText(document);
+            return new ParsedDocument(file.getOriginalFilename(), "pdf", normalize(text), false);
+        }
+    }
+
+    private String normalize(String text) {
+        return text == null ? "" : text.replaceAll("\\r\\n?", "\n").replaceAll("\\n{3,}", "\n\n").trim();
     }
 }

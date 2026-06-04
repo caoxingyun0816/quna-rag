@@ -2,8 +2,8 @@ package com.quna.rag.service;
 
 import com.quna.rag.dto.request.RagChunkListRequest;
 import com.quna.rag.dto.response.RagChunkResponse;
-import com.quna.rag.springrag.model.RagChunkEntity;
-import com.quna.rag.springrag.store.RagChunkMapper;
+import com.quna.rag.mapper.RagDocumentChunkMapper;
+import com.quna.rag.model.RagDocumentChunk;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,11 +13,9 @@ import java.util.List;
  */
 @Service
 public class RagChunkService {
-    private final RagKnowledgeBaseService knowledgeBaseService;
-    private final RagChunkMapper chunkMapper;
+    private final RagDocumentChunkMapper chunkMapper;
 
-    public RagChunkService(RagKnowledgeBaseService knowledgeBaseService, RagChunkMapper chunkMapper) {
-        this.knowledgeBaseService = knowledgeBaseService;
+    public RagChunkService(RagDocumentChunkMapper chunkMapper) {
         this.chunkMapper = chunkMapper;
     }
 
@@ -29,14 +27,13 @@ public class RagChunkService {
         return chunkMapper.selectByDocId(docId).stream().map(this::toResponse).toList();
     }
 
-    private RagChunkResponse toResponse(RagChunkEntity entity) {
+    private RagChunkResponse toResponse(RagDocumentChunk entity) {
         RagChunkResponse response = new RagChunkResponse();
         response.setId(entity.getId());
         response.setDocId(entity.getDocId());
-        response.setKbId(knowledgeBaseService.kbId(entity.getCollectionCode()));
-        response.setKbCode(entity.getCollectionCode());
+        response.setKbId(entity.getKbId());
         response.setChunkIndex(entity.getChunkIndex());
-        response.setTitle(entity.getTitlePath());
+        response.setTitle(entity.getTitle());
         response.setContent(entity.getContent());
         response.setKeywords(entity.getKeywords());
         response.setContentHash(entity.getContentHash());

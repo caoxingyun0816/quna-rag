@@ -2,12 +2,11 @@ package com.quna.rag.service;
 
 import com.quna.rag.common.QunaRuntimeException;
 import com.quna.rag.dto.request.RagKnowledgeBaseCreateRequest;
+import com.quna.rag.mapper.RagKnowledgeBaseMapper;
 import com.quna.rag.model.RagKnowledgeBase;
-import com.quna.rag.springrag.model.RagCollectionType;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -16,48 +15,43 @@ import java.util.List;
  */
 @Service
 public class RagKnowledgeBaseService {
-    private static final Long BUSINESS_KB_ID = 1L;
-    private static final Long TECH_KB_ID = 2L;
+    private final RagKnowledgeBaseMapper mapper;
+
+    public RagKnowledgeBaseService(RagKnowledgeBaseMapper mapper) {
+        this.mapper = mapper;
+    }
 
     public List<RagKnowledgeBase> list() {
-        return List.of(
-                knowledgeBase(BUSINESS_KB_ID, RagCollectionType.BUSINESS_DOC, 1),
-                knowledgeBase(TECH_KB_ID, RagCollectionType.TECH_DOC, 2)
-        );
+        return mapper.selectList();
     }
 
     public RagKnowledgeBase create(RagKnowledgeBaseCreateRequest request) {
-        throw new QunaRuntimeException("知识库创建接口已预留，当前版本请使用内置 business_doc / tech_doc");
-    }
-
-    public String collectionCode(Long kbId) {
-        if (kbId == null || BUSINESS_KB_ID.equals(kbId)) {
-            return RagCollectionType.BUSINESS_DOC.getCode();
+        if (request == null || StringUtils.isBlank(request.getKbCode()) || StringUtils.isBlank(request.getKbName())) {
+            throw new QunaRuntimeException("kbCode 和 kbName 不能为空");
         }
-        if (TECH_KB_ID.equals(kbId)) {
-            return RagCollectionType.TECH_DOC.getCode();
+        RagKnowledgeBase existing = mapper.selectByCode(request.getKbCode());
+        if (existing != null) {
+            return existing;
         }
-        throw new QunaRuntimeException("不支持的知识库ID: " + kbId);
-    }
-
-    public Long kbId(String collectionCode) {
-        if (StringUtils.equalsIgnoreCase(collectionCode, RagCollectionType.TECH_DOC.getCode())) {
-            return TECH_KB_ID;
-        }
-        return BUSINESS_KB_ID;
-    }
-
-    private RagKnowledgeBase knowledgeBase(Long id, RagCollectionType type, Integer kbType) {
         RagKnowledgeBase kb = new RagKnowledgeBase();
-        kb.setId(id);
-        kb.setKbCode(type.getCode());
-        kb.setKbName(type.getLabel());
-        kb.setKbType(kbType);
-        kb.setDescription(type.getLabel());
+        kb.setKbCode(request.getKbCode());
+        kb.setKbName(request.getKbName());
+        kb.setKbType(request.getKbType() == null ? 1 : request.getKbType());
+        kb.setDescription(request.getDescription());
         kb.setStatus(1);
         kb.setIsDeleted(0);
-        kb.setCreateTime(LocalDateTime.now());
-        kb.setUpdateTime(LocalDateTime.now());
+        mapper.insert(kb);
+        return kb;
+    }
+
+    public RagKnowledgeBase require(Long kbId) {
+        if (kbId == null) {
+            throw new QunaRuntimeException("kbId 不能为空");
+        }
+        RagKnowledgeBase kb = mapper.selectById(kbId);
+        if (kb == null || kb.getStatus() == null || kb.getStatus() != 1) {
+            throw new QunaRuntimeException("知识库不存在或已禁用: " + kbId);
+        }
         return kb;
     }
 }

@@ -1,8 +1,8 @@
 package com.quna.rag.service;
 
-import com.quna.rag.springrag.model.ParsedDocument;
-import com.quna.rag.springrag.parser.DocumentParser;
-import com.quna.rag.springrag.parser.DocumentParserResolver;
+import com.quna.rag.parser.DocumentParser;
+import com.quna.rag.parser.DocumentParserFactory;
+import com.quna.rag.parser.ParsedDocument;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -11,9 +11,9 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @Service
 public class RagParseService {
-    private final DocumentParserResolver parserResolver;
+    private final DocumentParserFactory parserResolver;
 
-    public RagParseService(DocumentParserResolver parserResolver) {
+    public RagParseService(DocumentParserFactory parserResolver) {
         this.parserResolver = parserResolver;
     }
 

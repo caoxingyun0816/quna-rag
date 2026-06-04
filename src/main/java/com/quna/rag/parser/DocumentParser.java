@@ -1,6 +1,4 @@
 package com.quna.rag.parser;
-
-import com.quna.rag.springrag.model.ParsedDocument;
 import org.springframework.web.multipart.MultipartFile;
 
 /**

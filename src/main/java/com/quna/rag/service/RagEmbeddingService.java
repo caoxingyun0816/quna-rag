@@ -1,6 +1,5 @@
 package com.quna.rag.service;
 
-import com.quna.rag.springrag.service.RagEmbeddingTextBuilder;
 import org.springframework.stereotype.Service;
 
 /**
@@ -8,13 +7,15 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class RagEmbeddingService {
-    private final RagEmbeddingTextBuilder embeddingTextBuilder;
-
-    public RagEmbeddingService(RagEmbeddingTextBuilder embeddingTextBuilder) {
-        this.embeddingTextBuilder = embeddingTextBuilder;
-    }
-
     public String buildEmbeddingText(String title, String content, String keywords) {
-        return embeddingTextBuilder.build(title, content, keywords);
+        StringBuilder text = new StringBuilder();
+        if (title != null && !title.isBlank()) {
+            text.append("标题：").append(title).append('\n');
+        }
+        if (keywords != null && !keywords.isBlank()) {
+            text.append("关键词：").append(keywords).append('\n');
+        }
+        text.append("正文：\n").append(content == null ? "" : content);
+        return text.toString();
     }
 }

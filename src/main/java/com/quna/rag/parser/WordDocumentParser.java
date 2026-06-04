@@ -1,6 +1,6 @@
 package com.quna.rag.parser;
 
-import com.quna.rag.springrag.model.ParsedDocument;
+import org.apache.poi.xwpf.usermodel.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -9,19 +9,35 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @Component("standardWordDocumentParser")
 public class WordDocumentParser implements DocumentParser {
-    private final com.quna.rag.springrag.parser.WordDocumentParser delegate;
-
-    public WordDocumentParser(com.quna.rag.springrag.parser.WordDocumentParser delegate) {
-        this.delegate = delegate;
-    }
-
     @Override
     public boolean supports(String filename) {
-        return delegate.supports(filename);
+        return filename != null && filename.toLowerCase().endsWith(".docx");
     }
 
     @Override
     public ParsedDocument parse(MultipartFile file) throws Exception {
-        return delegate.parse(file);
+        StringBuilder text = new StringBuilder();
+        try (XWPFDocument document = new XWPFDocument(file.getInputStream())) {
+            for (XWPFParagraph paragraph : document.getParagraphs()) {
+                if (paragraph.getText() != null && !paragraph.getText().isBlank()) {
+                    text.append(paragraph.getText()).append('\n');
+                }
+            }
+            for (XWPFTable table : document.getTables()) {
+                text.append('\n');
+                for (XWPFTableRow row : table.getRows()) {
+                    text.append("| ");
+                    for (XWPFTableCell cell : row.getTableCells()) {
+                        text.append(cell.getText().replace("\n", " ")).append(" | ");
+                    }
+                    text.append('\n');
+                }
+            }
+        }
+        return new ParsedDocument(file.getOriginalFilename(), "docx", normalize(text.toString()), true);
+    }
+
+    private String normalize(String text) {
+        return text == null ? "" : text.replaceAll("\\r\\n?", "\n").replaceAll("\\n{3,}", "\n\n").trim();
     }
 }

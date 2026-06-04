@@ -1,9 +1,9 @@
 package com.quna.rag.vector;
 
-import com.quna.rag.springrag.model.RagCollectionType;
-import com.quna.rag.springrag.store.RagVectorStoreRouter;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -13,20 +13,20 @@ import java.util.List;
  */
 @Component
 public class MilvusVectorClient implements VectorClient {
-    private final RagVectorStoreRouter vectorStoreRouter;
+    private final VectorStore vectorStore;
 
-    public MilvusVectorClient(RagVectorStoreRouter vectorStoreRouter) {
-        this.vectorStoreRouter = vectorStoreRouter;
+    public MilvusVectorClient(@Qualifier("ragStandardVectorStore") VectorStore vectorStore) {
+        this.vectorStore = vectorStore;
     }
 
     @Override
     public void add(String collectionCode, List<Document> documents) {
-        vectorStoreRouter.get(RagCollectionType.fromCode(collectionCode)).add(documents);
+        vectorStore.add(documents);
     }
 
     @Override
     public void delete(String collectionCode, List<String> vectorIds) {
-        vectorStoreRouter.get(RagCollectionType.fromCode(collectionCode)).delete(vectorIds);
+        vectorStore.delete(vectorIds);
     }
 
     @Override
@@ -38,6 +38,6 @@ public class MilvusVectorClient implements VectorClient {
         if (filterExpression != null && !filterExpression.isBlank()) {
             builder.filterExpression(filterExpression);
         }
-        return vectorStoreRouter.get(RagCollectionType.fromCode(collectionCode)).similaritySearch(builder.build());
+        return vectorStore.similaritySearch(builder.build());
     }
 }

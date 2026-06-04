@@ -22,6 +22,12 @@ public class RagDocumentChunk {
     private String contentHash;
     private String metadata;
     private String keywords;
+    private Double keywordScore;
+    private String docName;
+    private String docType;
+    private String projectCode;
+    private String bizModule;
+    private String tags;
     private Integer status;
     private Integer isDeleted;
     private LocalDateTime createTime;

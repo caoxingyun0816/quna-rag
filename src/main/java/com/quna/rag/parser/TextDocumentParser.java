@@ -6,17 +6,19 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Markdown 文档解析器，保留标题、代码块和表格结构。
+ * 普通文本和代码文件解析器。
  */
-@Component("standardMarkdownDocumentParser")
-public class MarkdownDocumentParser implements DocumentParser {
+@Component("standardTextDocumentParser")
+public class TextDocumentParser implements DocumentParser {
     @Override
     public boolean supports(String filename) {
         if (filename == null) {
             return false;
         }
         String name = filename.toLowerCase();
-        return name.endsWith(".md") || name.endsWith(".adoc");
+        return name.endsWith(".txt") || name.endsWith(".java") || name.endsWith(".xml")
+                || name.endsWith(".yml") || name.endsWith(".yaml") || name.endsWith(".json")
+                || name.endsWith(".js") || name.endsWith(".vue") || name.endsWith(".html");
     }
 
     @Override
@@ -27,7 +29,7 @@ public class MarkdownDocumentParser implements DocumentParser {
 
     private String extension(String filename) {
         int index = filename == null ? -1 : filename.lastIndexOf('.');
-        return index < 0 ? "md" : filename.substring(index + 1).toLowerCase();
+        return index < 0 ? "txt" : filename.substring(index + 1).toLowerCase();
     }
 
     private String normalize(String text) {
