@@ -4,8 +4,8 @@ import com.quna.rag.dto.request.RagQueryRequest;
 import com.quna.rag.dto.response.RagSearchHitResponse;
 import com.quna.rag.dto.response.RagSearchResponse;
 import com.quna.rag.mapper.RagDocumentChunkMapper;
-import com.quna.rag.model.RagDocumentChunk;
-import com.quna.rag.model.RagKnowledgeBase;
+import com.quna.rag.entity.RagDocumentChunk;
+import com.quna.rag.entity.RagKnowledgeBase;
 import com.quna.rag.vector.VectorClient;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,10 +31,10 @@ public class RagVectorSearchService {
                                   RagDocumentChunkMapper chunkMapper,
                                   VectorClient vectorClient,
                                   RagRerankService rerankService,
-                                  @Value("${rag.standard.vector-top-k:20}") int defaultVectorTopK,
-                                  @Value("${rag.standard.keyword-top-k:20}") int defaultKeywordTopK,
-                                  @Value("${rag.standard.rerank-top-k:5}") int defaultRerankTopK,
-                                  @Value("${rag.standard.min-score:0.0}") double defaultMinScore) {
+                                  @Value("${rag.config.vector-top-k:20}") int defaultVectorTopK,
+                                  @Value("${rag.config.keyword-top-k:20}") int defaultKeywordTopK,
+                                  @Value("${rag.config.rerank-top-k:5}") int defaultRerankTopK,
+                                  @Value("${rag.config.min-score:0.0}") double defaultMinScore) {
         this.knowledgeBaseService = knowledgeBaseService;
         this.chunkMapper = chunkMapper;
         this.vectorClient = vectorClient;

@@ -1,6 +1,6 @@
 package com.quna.rag.mapper;
 
-import com.quna.rag.model.RagDocumentChunk;
+import com.quna.rag.entity.RagDocumentChunk;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;

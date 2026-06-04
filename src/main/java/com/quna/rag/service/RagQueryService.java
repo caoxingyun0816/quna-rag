@@ -1,11 +1,16 @@
 package com.quna.rag.service;
 
 import com.quna.rag.dto.request.RagQueryRequest;
-import com.quna.rag.dto.response.*;
+import com.quna.rag.dto.response.RagQueryResponse;
+import com.quna.rag.dto.response.RagReferenceResponse;
+import com.quna.rag.dto.response.RagSearchHitResponse;
+import com.quna.rag.dto.response.RagSearchResponse;
+import com.quna.rag.entity.RagQueryLog;
 import com.quna.rag.mapper.RagQueryLogMapper;
-import com.quna.rag.model.RagQueryLog;
-import com.quna.rag.util.AiUtil;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -17,16 +22,16 @@ import java.util.stream.Collectors;
 public class RagQueryService {
     private final RagVectorSearchService vectorSearchService;
     private final RagPromptService promptService;
-    private final AiUtil aiUtil;
+    private final ChatClient chatClient;
     private final RagQueryLogMapper queryLogMapper;
 
     public RagQueryService(RagVectorSearchService vectorSearchService,
                            RagPromptService promptService,
-                           AiUtil aiUtil,
+                           @Qualifier("ragChatClient") ChatClient chatClient,
                            RagQueryLogMapper queryLogMapper) {
         this.vectorSearchService = vectorSearchService;
         this.promptService = promptService;
-        this.aiUtil = aiUtil;
+        this.chatClient = chatClient;
         this.queryLogMapper = queryLogMapper;
     }
 
@@ -37,7 +42,10 @@ public class RagQueryService {
         if (search.getHits() == null || search.getHits().isEmpty()) {
             answer = "知识库中未找到足够信息。";
         } else {
-            answer = aiUtil.chat(request.getQuestion(), promptService.build(request.getQuestion(), search.getHits()));
+            answer = chatClient.prompt()
+                    .user(promptService.build(request.getQuestion(), search.getHits()))
+                    .call()
+                    .content();
         }
         RagQueryResponse response = new RagQueryResponse();
         response.setQuestion(request.getQuestion());
@@ -47,6 +55,49 @@ public class RagQueryService {
         response.setReferences(search.getHits().stream().map(this::toReference).toList());
         saveLog(request, response, System.currentTimeMillis() - start, true, null);
         return response;
+    }
+
+    public SseEmitter askStream(RagQueryRequest request) {
+        SseEmitter emitter = new SseEmitter(60000L);
+        long start = System.currentTimeMillis();
+        RagSearchResponse search = vectorSearchService.search(request);
+        StringBuilder answer = new StringBuilder();
+        try {
+            emitter.send(SseEmitter.event().name("sources").data(search));
+            if (search.getHits() == null || search.getHits().isEmpty()) {
+                String empty = "知识库中未找到足够信息。";
+                answer.append(empty);
+                emitter.send(SseEmitter.event().name("message").data(empty));
+                emitter.complete();
+                saveLog(request, toResponse(request, answer.toString(), search), System.currentTimeMillis() - start, true, null);
+                return emitter;
+            }
+            chatClient.prompt()
+                    .user(promptService.build(request.getQuestion(), search.getHits()))
+                    .stream()
+                    .content()
+                    .doOnNext(chunk -> {
+                        try {
+                            answer.append(chunk);
+                            emitter.send(SseEmitter.event().name("message").data(chunk));
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+                    })
+                    .doOnError(error -> {
+                        saveLog(request, toResponse(request, answer.toString(), search), System.currentTimeMillis() - start, false, error.getMessage());
+                        emitter.completeWithError(error);
+                    })
+                    .doOnComplete(() -> {
+                        saveLog(request, toResponse(request, answer.toString(), search), System.currentTimeMillis() - start, true, null);
+                        emitter.complete();
+                    })
+                    .subscribe();
+        } catch (Exception e) {
+            saveLog(request, toResponse(request, answer.toString(), search), System.currentTimeMillis() - start, false, e.getMessage());
+            emitter.completeWithError(e);
+        }
+        return emitter;
     }
 
     private RagReferenceResponse toReference(RagSearchHitResponse hit) {
@@ -60,6 +111,16 @@ public class RagQueryService {
         response.setKeywordScore(hit.getKeywordScore());
         response.setVectorHit(hit.getVectorHit());
         response.setKeywordHit(hit.getKeywordHit());
+        return response;
+    }
+
+    private RagQueryResponse toResponse(RagQueryRequest request, String answer, RagSearchResponse search) {
+        RagQueryResponse response = new RagQueryResponse();
+        response.setQuestion(request.getQuestion());
+        response.setAnswer(answer);
+        response.setTotalCandidates(search.getTotalCandidates());
+        response.setTotal(search.getTotal());
+        response.setReferences(search.getHits() == null ? List.of() : search.getHits().stream().map(this::toReference).toList());
         return response;
     }
 

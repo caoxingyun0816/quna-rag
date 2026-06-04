@@ -1,6 +1,6 @@
 package com.quna.rag.mapper;
 
-import com.quna.rag.model.RagQueryLog;
+import com.quna.rag.entity.RagQueryLog;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;

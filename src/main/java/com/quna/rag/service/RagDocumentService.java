@@ -8,9 +8,11 @@ import com.quna.rag.dto.response.RagDocumentResponse;
 import com.quna.rag.dto.response.RagDocumentUploadResponse;
 import com.quna.rag.mapper.RagDocumentChunkMapper;
 import com.quna.rag.mapper.RagDocumentMapper;
-import com.quna.rag.model.RagDocument;
-import com.quna.rag.model.RagDocumentChunk;
-import com.quna.rag.model.RagKnowledgeBase;
+import com.quna.rag.entity.RagDocument;
+import com.quna.rag.entity.RagDocumentChunk;
+import com.quna.rag.entity.RagKnowledgeBase;
+import com.quna.rag.entity.RagParseStatus;
+import com.quna.rag.entity.RagVectorStatus;
 import com.quna.rag.parser.ParsedDocument;
 import com.quna.rag.util.FileValidationUtil;
 import com.quna.rag.util.RagHashUtil;
@@ -23,7 +25,6 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.beans.Transient;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -35,13 +36,6 @@ import java.util.concurrent.Executors;
 @Service
 public class RagDocumentService {
     private static final ExecutorService INDEX_EXECUTOR = Executors.newFixedThreadPool(4);
-    private static final int PARSE_RUNNING = 1;
-    private static final int PARSE_SUCCESS = 2;
-    private static final int PARSE_FAILED = 3;
-    private static final int VECTOR_WAITING = 0;
-    private static final int VECTOR_RUNNING = 1;
-    private static final int VECTOR_SUCCESS = 2;
-    private static final int VECTOR_FAILED = 3;
 
     private final RagKnowledgeBaseService knowledgeBaseService;
     private final RagDocumentMapper documentMapper;
@@ -102,8 +96,8 @@ public class RagDocumentService {
         document.setFileUrl(storedFile.fileUrl());
         document.setFileSize(file.getSize());
         document.setFileMd5(fileHash);
-        document.setParseStatus(PARSE_RUNNING);
-        document.setVectorStatus(VECTOR_WAITING);
+        document.setParseStatus(RagParseStatus.RUNNING.getCode());
+        document.setVectorStatus(RagVectorStatus.WAITING.getCode());
         document.setChunkCount(0);
         document.setVersionNo(1);
         document.setStatus(1);
@@ -140,7 +134,7 @@ public class RagDocumentService {
         }
         RagKnowledgeBase kb = knowledgeBaseService.require(document.getKbId());
         try {
-            documentMapper.updateBuildStatus(docId, PARSE_RUNNING, VECTOR_RUNNING, null);
+            documentMapper.updateBuildStatus(docId, RagParseStatus.RUNNING.getCode(), RagVectorStatus.RUNNING.getCode(), null);
             MultipartFile storedFile = new StoredMultipartFile(fileStorageService.downloadToTemp(document.getFileUrl(), document.getDocName()), document.getDocName());
             ParsedDocument parsedDocument = parseService.parse(storedFile);
             List<RagTextSplitter.Chunk> chunks = splitter.split(parsedDocument);
@@ -157,9 +151,9 @@ public class RagDocumentService {
             if (!vectorDocuments.isEmpty()) {
                 vectorClient.add(kb.getKbCode(), vectorDocuments);
             }
-            documentMapper.updateIndexed(docId, PARSE_SUCCESS, VECTOR_SUCCESS, vectorDocuments.size(), null);
+            documentMapper.updateIndexed(docId, RagParseStatus.SUCCESS.getCode(), RagVectorStatus.SUCCESS.getCode(), vectorDocuments.size(), null);
         } catch (Exception e) {
-            documentMapper.updateBuildStatus(docId, PARSE_FAILED, VECTOR_FAILED, e.getMessage());
+            documentMapper.updateBuildStatus(docId, RagParseStatus.FAILED.getCode(), RagVectorStatus.FAILED.getCode(), e.getMessage());
             throw new IllegalStateException("文档构建失败: " + e.getMessage(), e);
         }
     }
@@ -243,10 +237,12 @@ public class RagDocumentService {
     }
 
     private String statusText(RagDocument document) {
-        if (Objects.equals(document.getParseStatus(), PARSE_FAILED) || Objects.equals(document.getVectorStatus(), VECTOR_FAILED)) {
+        RagParseStatus parseStatus = RagParseStatus.fromCode(document.getParseStatus());
+        RagVectorStatus vectorStatus = RagVectorStatus.fromCode(document.getVectorStatus());
+        if (parseStatus == RagParseStatus.FAILED || vectorStatus == RagVectorStatus.FAILED) {
             return "FAILED";
         }
-        if (Objects.equals(document.getParseStatus(), PARSE_SUCCESS) && Objects.equals(document.getVectorStatus(), VECTOR_SUCCESS)) {
+        if (parseStatus == RagParseStatus.SUCCESS && vectorStatus == RagVectorStatus.SUCCESS) {
             return "INDEXED";
         }
         return "BUILDING";

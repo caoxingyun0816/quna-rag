@@ -3,7 +3,7 @@ package com.quna.rag.controller;
 import com.quna.rag.common.BasicAction;
 import com.quna.rag.common.RestResponse;
 import com.quna.rag.dto.request.RagKnowledgeBaseCreateRequest;
-import com.quna.rag.model.RagKnowledgeBase;
+import com.quna.rag.entity.RagKnowledgeBase;
 import com.quna.rag.service.RagKnowledgeBaseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

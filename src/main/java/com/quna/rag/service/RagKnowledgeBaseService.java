@@ -3,7 +3,7 @@ package com.quna.rag.service;
 import com.quna.rag.common.QunaRuntimeException;
 import com.quna.rag.dto.request.RagKnowledgeBaseCreateRequest;
 import com.quna.rag.mapper.RagKnowledgeBaseMapper;
-import com.quna.rag.model.RagKnowledgeBase;
+import com.quna.rag.entity.RagKnowledgeBase;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 

@@ -1,6 +1,6 @@
 package com.quna.rag.mapper;
 
-import com.quna.rag.model.RagKnowledgeBase;
+import com.quna.rag.entity.RagKnowledgeBase;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;

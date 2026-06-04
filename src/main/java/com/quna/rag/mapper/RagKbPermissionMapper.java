@@ -10,12 +10,19 @@ import org.apache.ibatis.annotations.Select;
  */
 @Mapper
 public interface RagKbPermissionMapper {
+    @Select("SELECT COUNT(1) FROM rag_kb_permission WHERE kb_id=#{kbId}")
+    int countByKbId(@Param("kbId") Long kbId);
+
     @Select("""
             SELECT COUNT(1)
             FROM rag_kb_permission
-            WHERE kb_id=#{kbId} AND subject_type=#{subjectType} AND subject_id=#{subjectId}
+            WHERE kb_id=#{kbId}
+              AND subject_type=#{subjectType}
+              AND subject_id=#{subjectId}
+              AND permission_type >= #{permissionType}
             """)
     int countPermission(@Param("kbId") Long kbId,
                         @Param("subjectType") Integer subjectType,
-                        @Param("subjectId") String subjectId);
+                        @Param("subjectId") String subjectId,
+                        @Param("permissionType") Integer permissionType);
 }

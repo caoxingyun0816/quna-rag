@@ -18,8 +18,8 @@ public class RagTextSplitter {
     private final int chunkSize;
     private final int overlap;
 
-    public RagTextSplitter(@Value("${rag.standard.chunk-size:1200}") int chunkSize,
-                           @Value("${rag.standard.chunk-overlap:100}") int overlap) {
+    public RagTextSplitter(@Value("${rag.config.chunk-size:1200}") int chunkSize,
+                           @Value("${rag.config.chunk-overlap:100}") int overlap) {
         this.chunkSize = chunkSize;
         this.overlap = overlap;
     }

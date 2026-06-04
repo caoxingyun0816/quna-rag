@@ -19,7 +19,7 @@ public class RagVectorConfig {
     @Bean
     public VectorStore ragStandardVectorStore(@Qualifier("ragMilvusServiceClient") MilvusServiceClient milvusClient,
                                               EmbeddingModel embeddingModel,
-                                              @Value("${milvus.rag-standard-collection:rag_chunk_vector}") String collection,
+                                              @Value("${milvus.collection:quna_rag_chunk_vector}") String collection,
                                               @Value("${milvus.dim:1536}") int dimensions) {
         return MilvusVectorStore.builder(milvusClient, embeddingModel)
                 .collectionName(collection)

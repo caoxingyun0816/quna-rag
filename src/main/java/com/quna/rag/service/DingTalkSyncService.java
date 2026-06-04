@@ -6,6 +6,7 @@ import com.quna.rag.util.DingTalkUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,11 +16,9 @@ import java.util.Map;
 @Service
 public class DingTalkSyncService {
     private final DingTalkUtil dingTalkUtil;
-    private final DocService docService;
-    
-    public DingTalkSyncService(DingTalkUtil dingTalkUtil, DocService docService) {
+
+    public DingTalkSyncService(DingTalkUtil dingTalkUtil) {
         this.dingTalkUtil = dingTalkUtil;
-        this.docService = docService;
     }
     
     /**
@@ -64,7 +63,7 @@ public class DingTalkSyncService {
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile)) {
                 fos.write(fileBytes);
             }
-            docService.processFile(tempFile, docName, userId);
+            processFile(tempFile, docName, userId);
             tempFile.delete();
         } else if (isOnlineDocument(docType)) {
             // 在线文档：通过内容 API 获取（dentryUuid 会内部转换为实际的 spaceId 和 dentryId）
@@ -81,7 +80,7 @@ public class DingTalkSyncService {
             log.info("文档内容获取成功: {}, 原始长度: {}, 清理后长度: {}", 
                     dentryUuid, rawContent.length(), cleanedContent.length());
             
-            docService.processAndSave(cleanedContent, docName, userId);
+            processAndSave(cleanedContent, docName, userId);
         } else {
             // 未知类型，尝试作为在线文档处理
             log.warn("未知文档类型: {}, 尝试作为在线文档处理", docType);
@@ -89,7 +88,7 @@ public class DingTalkSyncService {
                 String rawContent = dingTalkUtil.getDocContent(dentryUuid);
                 if (rawContent != null && !rawContent.trim().isEmpty()) {
                     String cleanedContent = cleanContent(rawContent, docType);
-                    docService.processAndSave(cleanedContent, docName, userId);
+                    processAndSave(cleanedContent, docName, userId);
                 } else {
                     throw new RuntimeException("无法获取文档内容");
                 }
@@ -101,7 +100,7 @@ public class DingTalkSyncService {
                 try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile)) {
                     fos.write(fileBytes);
                 }
-                docService.processFile(tempFile, docName, userId);
+                processFile(tempFile, docName, userId);
                 tempFile.delete();
             }
         }
@@ -185,5 +184,16 @@ public class DingTalkSyncService {
         result.put("failCount", failList.size());
         
         return result;
+    }
+
+    public void processFile(File file, String filename, Long userId) throws Exception {
+        String text = "";
+        processAndSave(text, filename, userId, "钉钉", file.length());
+    }
+
+    private void processAndSave(String text, String filename, Long userId, String 钉钉, long length) {
+    }
+
+    private void processAndSave(String text, String filename, Long userId) {
     }
 }

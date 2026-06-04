@@ -3,7 +3,7 @@ package com.quna.rag.service;
 import com.quna.rag.dto.request.RagChunkListRequest;
 import com.quna.rag.dto.response.RagChunkResponse;
 import com.quna.rag.mapper.RagDocumentChunkMapper;
-import com.quna.rag.model.RagDocumentChunk;
+import com.quna.rag.entity.RagDocumentChunk;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

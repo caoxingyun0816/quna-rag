@@ -9,7 +9,9 @@ import com.quna.rag.service.RagQueryService;
 import com.quna.rag.service.RagVectorSearchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * RAG 查询入口，提供检索测试和问答增强两个接口。
@@ -40,5 +42,10 @@ public class RagQueryAction extends BasicAction {
     @PostMapping("/ask")
     public RestResponse<RagQueryResponse> ask(@RequestBody RagQueryRequest request) {
         return RestResponse.success(queryService.ask(request));
+    }
+
+    @PostMapping(value = "/ask-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter askStream(@RequestBody RagQueryRequest request) {
+        return queryService.askStream(request);
     }
 }
