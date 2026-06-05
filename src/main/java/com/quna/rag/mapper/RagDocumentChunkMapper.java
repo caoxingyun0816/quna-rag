@@ -50,6 +50,37 @@ public interface RagDocumentChunkMapper {
 
     @Select("""
             <script>
+            SELECT id, kb_id, doc_id, chunk_code, chunk_index, title, content, summary,
+                   token_count, vector_id, content_hash, metadata, keywords, status, is_deleted,
+                   create_time, update_time
+            FROM rag_document_chunk
+            WHERE is_deleted = 0
+            <if test="kbId != null">AND kb_id = #{kbId}</if>
+            <if test="docId != null">AND doc_id = #{docId}</if>
+            <if test="title != null and title != ''">AND title LIKE CONCAT('%', #{title}, '%')</if>
+            <if test="keyword != null and keyword != ''">
+                AND (keywords LIKE CONCAT('%', #{keyword}, '%') OR content LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            ORDER BY id DESC
+            </script>
+            """)
+    @ResultMap("ragDocumentChunkMap")
+    List<RagDocumentChunk> selectList(@Param("kbId") Long kbId,
+                                      @Param("docId") Long docId,
+                                      @Param("title") String title,
+                                      @Param("keyword") String keyword);
+
+    @Select("""
+            SELECT id, kb_id, doc_id, chunk_code, chunk_index, title, content, summary, token_count, vector_id,
+                   content_hash, metadata, keywords, status, is_deleted, create_time, update_time
+            FROM rag_document_chunk
+            WHERE id = #{id} AND is_deleted = 0
+            """)
+    @ResultMap("ragDocumentChunkMap")
+    RagDocumentChunk selectById(@Param("id") Long id);
+
+    @Select("""
+            <script>
             SELECT c.id, c.kb_id, c.doc_id, c.chunk_code, c.chunk_index, c.title, c.content, c.summary,
                    c.token_count, c.vector_id, c.content_hash, c.metadata, c.keywords, c.status, c.is_deleted,
                    c.create_time, c.update_time,
@@ -104,4 +135,18 @@ public interface RagDocumentChunkMapper {
 
     @Update("UPDATE rag_document_chunk SET is_deleted=1, update_time=CURRENT_TIMESTAMP WHERE doc_id=#{docId}")
     int logicalDeleteByDocId(@Param("docId") Long docId);
+
+    @Update("UPDATE rag_document_chunk SET is_deleted=1, update_time=CURRENT_TIMESTAMP WHERE id=#{id}")
+    int logicalDelete(@Param("id") Long id);
+
+    @Update("""
+            UPDATE rag_document
+            SET chunk_count = (
+                SELECT COUNT(1) FROM rag_document_chunk
+                WHERE doc_id = #{docId} AND is_deleted = 0
+            ),
+            update_time=CURRENT_TIMESTAMP
+            WHERE id = #{docId}
+            """)
+    int refreshDocumentChunkCount(@Param("docId") Long docId);
 }

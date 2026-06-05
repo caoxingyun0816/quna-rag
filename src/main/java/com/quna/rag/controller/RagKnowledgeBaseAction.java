@@ -3,6 +3,8 @@ package com.quna.rag.controller;
 import com.quna.rag.common.BasicAction;
 import com.quna.rag.common.RestResponse;
 import com.quna.rag.dto.request.RagKnowledgeBaseCreateRequest;
+import com.quna.rag.dto.request.RagKnowledgeBaseListRequest;
+import com.quna.rag.dto.request.RagKbPermissionSaveRequest;
 import com.quna.rag.entity.RagKnowledgeBase;
 import com.quna.rag.service.RagKnowledgeBaseService;
 import org.slf4j.Logger;
@@ -31,12 +33,27 @@ public class RagKnowledgeBaseAction extends BasicAction {
     }
 
     @GetMapping("/list")
-    public RestResponse<List<RagKnowledgeBase>> list() {
-        return RestResponse.success(knowledgeBaseService.list());
+    public RestResponse<List<RagKnowledgeBase>> list(@ModelAttribute RagKnowledgeBaseListRequest request) {
+        return RestResponse.success(knowledgeBaseService.list(request));
     }
 
     @PostMapping("/create")
     public RestResponse<RagKnowledgeBase> create(@RequestBody RagKnowledgeBaseCreateRequest request) {
         return RestResponse.success(knowledgeBaseService.create(request));
+    }
+
+    @PutMapping("/{id}")
+    public RestResponse<RagKnowledgeBase> update(@PathVariable Long id, @RequestBody RagKnowledgeBaseCreateRequest request) {
+        return RestResponse.success(knowledgeBaseService.update(id, request));
+    }
+
+    @PutMapping("/{id}/status")
+    public RestResponse<Boolean> updateStatus(@PathVariable Long id, @RequestBody RagKnowledgeBaseCreateRequest request) {
+        return RestResponse.success(knowledgeBaseService.updateStatus(id, request.getStatus()));
+    }
+
+    @PutMapping("/permission")
+    public RestResponse<Boolean> savePermission(@RequestBody RagKbPermissionSaveRequest request) {
+        return RestResponse.success(knowledgeBaseService.savePermission(request));
     }
 }

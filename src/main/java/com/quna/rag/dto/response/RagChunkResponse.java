@@ -13,6 +13,10 @@ public class RagChunkResponse {
     private Long docId;
     private Long kbId;
     private String kbCode;
+    private String docName;
+    private String docType;
+    private String projectCode;
+    private String bizModule;
     private Integer chunkIndex;
     private String title;
     private String content;

@@ -8,7 +8,9 @@ import lombok.Data;
 @Data
 public class RagDocumentListRequest {
     private Long kbId;
+    private String docName;
     private String projectCode;
     private String bizModule;
     private String docType;
+    private String status;
 }

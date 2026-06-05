@@ -73,17 +73,23 @@ public interface RagDocumentMapper {
             FROM rag_document
             WHERE is_deleted = 0
             <if test="kbId != null">AND kb_id = #{kbId}</if>
+            <if test="docName != null and docName != ''">AND doc_name LIKE CONCAT('%', #{docName}, '%')</if>
             <if test="projectCode != null and projectCode != ''">AND project_code = #{projectCode}</if>
             <if test="bizModule != null and bizModule != ''">AND biz_module = #{bizModule}</if>
             <if test="docType != null and docType != ''">AND doc_type = #{docType}</if>
+            <if test="status == 'BUILDING'">AND (parse_status != 2 OR vector_status != 2) AND parse_status != 3 AND vector_status != 3</if>
+            <if test="status == 'INDEXED'">AND parse_status = 2 AND vector_status = 2</if>
+            <if test="status == 'FAILED'">AND (parse_status = 3 OR vector_status = 3)</if>
             ORDER BY id DESC
             </script>
             """)
     @ResultMap("ragDocumentMap")
     List<RagDocument> selectList(@Param("kbId") Long kbId,
+                                 @Param("docName") String docName,
                                  @Param("projectCode") String projectCode,
                                  @Param("bizModule") String bizModule,
-                                 @Param("docType") String docType);
+                                 @Param("docType") String docType,
+                                 @Param("status") String status);
 
     @Update("""
             UPDATE rag_document

@@ -160,10 +160,15 @@ public class RagDocumentService {
 
     public List<RagDocumentResponse> list(RagDocumentListRequest request) {
         Long kbId = request == null ? null : request.getKbId();
+        String docName = request == null ? null : request.getDocName();
         String projectCode = request == null ? null : request.getProjectCode();
         String bizModule = request == null ? null : request.getBizModule();
         String docType = request == null ? null : request.getDocType();
-        return documentMapper.selectList(kbId, projectCode, bizModule, docType).stream().map(this::toResponse).toList();
+        String status = request == null ? null : request.getStatus();
+        return documentMapper.selectList(kbId, docName, projectCode, bizModule, docType, status)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     public boolean delete(Long docId) {
@@ -181,6 +186,25 @@ public class RagDocumentService {
         }
         chunkMapper.logicalDeleteByDocId(docId);
         documentMapper.logicalDelete(docId);
+        return true;
+    }
+
+    public boolean rebuild(Long docId) {
+        RagDocument document = documentMapper.selectById(docId);
+        if (document == null) {
+            throw new QunaRuntimeException("文档不存在");
+        }
+        RagKnowledgeBase kb = knowledgeBaseService.require(document.getKbId());
+        List<String> vectorIds = chunkMapper.selectByDocId(docId).stream()
+                .map(RagDocumentChunk::getVectorId)
+                .filter(StringUtils::isNotBlank)
+                .toList();
+        if (!vectorIds.isEmpty()) {
+            vectorClient.delete(kb.getKbCode(), vectorIds);
+        }
+        chunkMapper.logicalDeleteByDocId(docId);
+        documentMapper.updateBuildStatus(docId, RagParseStatus.RUNNING.getCode(), RagVectorStatus.WAITING.getCode(), null);
+        CompletableFuture.runAsync(() -> buildDocument(docId), INDEX_EXECUTOR);
         return true;
     }
 

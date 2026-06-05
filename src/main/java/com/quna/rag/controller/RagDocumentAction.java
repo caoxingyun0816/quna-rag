@@ -54,10 +54,25 @@ public class RagDocumentAction extends BasicAction {
         return RestResponse.success(documentService.delete(docId));
     }
 
+    @PostMapping("/{docId}/rebuild")
+    public RestResponse<Boolean> rebuild(@PathVariable Long docId) {
+        return RestResponse.success(documentService.rebuild(docId));
+    }
+
+    @GetMapping("/chunks")
+    public RestResponse<List<RagChunkResponse>> chunks(@ModelAttribute RagChunkListRequest request) {
+        return RestResponse.success(chunkService.list(request));
+    }
+
     @GetMapping("/{docId}/chunks")
     public RestResponse<List<RagChunkResponse>> chunks(@PathVariable Long docId) {
         RagChunkListRequest request = new RagChunkListRequest();
         request.setDocId(docId);
         return RestResponse.success(chunkService.list(request));
+    }
+
+    @DeleteMapping("/chunks/{chunkId}")
+    public RestResponse<Boolean> deleteChunk(@PathVariable Long chunkId) {
+        return RestResponse.success(chunkService.delete(chunkId));
     }
 }

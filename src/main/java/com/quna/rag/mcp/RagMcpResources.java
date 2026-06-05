@@ -45,7 +45,7 @@ public class RagMcpResources {
             mimeType = "application/json"
     )
     public String getKnowledgeBaseList() {
-        return json(Map.of("knowledgeBases", knowledgeBaseService.list()));
+        return json(Map.of("knowledgeBases", knowledgeBaseService.list(null)));
     }
 
     private String json(Object value) {

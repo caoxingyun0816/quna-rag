@@ -84,7 +84,21 @@
         .status{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:12px;font-size:12px;background:#edf7f4;color:#28665e}
         .status.pending{background:#f8f1e8;color:#9a5b10}
         .status.idle{background:#eef2f6;color:#64748b}
+        .status.fail{background:#fee2e2;color:#b91c1c}
         .empty{padding:42px;text-align:center;color:#7b8794}
+        .pre-box{max-height:360px;overflow:auto;border:1px solid #e3e8ef;border-radius:4px;background:#fbfcfd;padding:12px;white-space:pre-wrap;line-height:1.7;font-size:13px;color:#374151}
+        .link-btn{height:28px;padding:0 6px;background:transparent;color:#2f6f68}
+        .link-btn.danger{color:#b91c1c}
+        .list-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+        .cell-ellipsis{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .modal-mask{position:fixed;inset:0;background:rgba(15,23,42,.28);display:grid;place-items:center;z-index:60;padding:24px}
+        .modal{width:min(720px,96vw);max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 22px 55px rgba(15,23,42,.2);display:flex;flex-direction:column}
+        .modal.small{width:min(520px,96vw)}
+        .modal-head{height:58px;border-bottom:1px solid #dfe5ec;padding:0 18px;display:flex;align-items:center;justify-content:space-between}
+        .modal-title{font-size:16px;font-weight:700;color:#17212f}
+        .modal-body{padding:18px;overflow:auto}
+        .modal-foot{height:58px;border-top:1px solid #edf1f5;padding:0 18px;display:flex;align-items:center;justify-content:flex-end;gap:10px}
+        .query-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
 
         .split{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px}
         .chat-panel{height:calc(100vh - 152px);min-height:540px;display:flex;flex-direction:column}
@@ -204,57 +218,137 @@
                     <div class="loading-spinner"></div>
                 </div>
 
-                <section v-show="tab==='doc-kb' || tab==='documents'">
-                    <div class="metric-grid" style="margin-bottom:16px">
-                        <div class="metric">
-                            <div class="metric-num">{{filteredDocs.length}}</div>
-                            <div class="metric-label">文档数量</div>
+                <section v-show="tab==='kb-list'">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">知识库查询</div>
                         </div>
-                        <div class="metric">
-                            <div class="metric-num">{{docList.filter(item => item.source === '钉钉').length}}</div>
-                            <div class="metric-label">钉钉来源</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-num">{{selectedDocIds.length}}</div>
-                            <div class="metric-label">待同步选择</div>
+                        <div class="panel-body">
+                            <div class="form-grid three">
+                                <div>
+                                    <div class="field-name">知识库编码</div>
+                                    <input class="form-input" v-model="kbQuery.kbCode" placeholder="请输入编码">
+                                </div>
+                                <div>
+                                    <div class="field-name">知识库名称</div>
+                                    <input class="form-input" v-model="kbQuery.kbName" placeholder="请输入名称">
+                                </div>
+                                <div>
+                                    <div class="field-name">知识库类型</div>
+                                    <select class="form-select" v-model="kbQuery.kbType">
+                                        <option value="">全部</option>
+                                        <option :value="1">业务文档</option>
+                                        <option :value="2">技术文档</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <div class="field-name">状态</div>
+                                    <select class="form-select" v-model="kbQuery.status">
+                                        <option value="">全部</option>
+                                        <option :value="1">启用</option>
+                                        <option :value="0">禁用</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="query-actions">
+                                <button class="secondary-btn" @click="resetKbQuery">重置</button>
+                                <button class="primary-btn" @click="loadKbList">查询</button>
+                            </div>
                         </div>
                     </div>
 
                     <div class="panel">
                         <div class="panel-head">
-                            <div class="panel-title">文档查询</div>
-                            <div class="actions">
-                                <button class="secondary-btn" @click="resetDocQuery">重置</button>
-                                <button class="primary-btn" @click="applyDocQuery">查询</button>
-                            </div>
+                            <div class="panel-title">知识库列表</div>
+                            <div class="page-meta">共 {{kbList.length}} 条</div>
                         </div>
                         <div class="panel-body">
-                            <div class="query-grid">
+                            <div class="list-toolbar">
+                                <div class="actions">
+                                    <button class="primary-btn" @click="openKbModal('create')">新增知识库</button>
+                                </div>
+                                <button class="secondary-btn" @click="loadKbList">刷新</button>
+                            </div>
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>编码</th>
+                                        <th>名称</th>
+                                        <th>类型</th>
+                                        <th>状态</th>
+                                        <th>描述</th>
+                                        <th>更新时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody v-if="kbList.length">
+                                    <tr v-for="kb in kbList" :key="kb.id">
+                                        <td>{{kb.id}}</td>
+                                        <td>{{kb.kbCode}}</td>
+                                        <td>{{kb.kbName}}</td>
+                                        <td>{{kbTypeText(kb.kbType)}}</td>
+                                        <td><span class="status" :class="{idle: kb.status !== 1}">{{kb.status === 1 ? '启用' : '禁用'}}</span></td>
+                                        <td><div class="cell-ellipsis">{{kb.description || '-'}}</div></td>
+                                        <td>{{formatTime(kb.updateTime || kb.createTime)}}</td>
+                                        <td>
+                                            <button class="link-btn" @click="toggleKnowledgeBase(kb)">{{kb.status === 1 ? '禁用' : '启用'}}</button>
+                                            <button class="link-btn" @click="openKbModal('edit', kb)">编辑</button>
+                                            <button class="link-btn" @click="openKbPermission(kb)">权限配置</button>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                                <div class="empty" v-if="!kbList.length">暂无知识库数据</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section v-show="tab==='doc-list'">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div class="panel-title">文档查询</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-grid three">
+                                <div>
+                                    <div class="field-name">知识库</div>
+                                    <select class="form-select" v-model="documentQuery.kbId">
+                                        <option value="">全部</option>
+                                        <option v-for="kb in kbList" :key="kb.id" :value="kb.id">{{kb.kbName}}</option>
+                                    </select>
+                                </div>
                                 <div>
                                     <div class="field-name">文档名称</div>
-                                    <input class="form-input" v-model="docQuery.keyword" placeholder="请输入文档名称">
+                                    <input class="form-input" v-model="documentQuery.docName" placeholder="请输入文档名称">
                                 </div>
                                 <div>
-                                    <div class="field-name">来源</div>
-                                    <select class="form-select" v-model="docQuery.source">
-                                        <option value="">全部</option>
-                                        <option value="本地上传">本地上传</option>
-                                        <option value="钉钉">钉钉</option>
-                                    </select>
+                                    <div class="field-name">项目编码</div>
+                                    <input class="form-input" v-model="documentQuery.projectCode" placeholder="请输入项目编码">
                                 </div>
                                 <div>
-                                    <div class="field-name">状态</div>
-                                    <select class="form-select" v-model="docQuery.status">
+                                    <div class="field-name">业务模块</div>
+                                    <input class="form-input" v-model="documentQuery.bizModule" placeholder="请输入业务模块">
+                                </div>
+                                <div>
+                                    <div class="field-name">文档类型</div>
+                                    <input class="form-input" v-model="documentQuery.docType" placeholder="md/docx/pdf">
+                                </div>
+                                <div>
+                                    <div class="field-name">向量状态</div>
+                                    <select class="form-select" v-model="documentQuery.status">
                                         <option value="">全部</option>
-                                        <option value="已入库">已入库</option>
-                                        <option value="同步中">同步中</option>
-                                        <option value="待处理">待处理</option>
+                                        <option value="BUILDING">构建中</option>
+                                        <option value="INDEXED">已向量化</option>
+                                        <option value="FAILED">失败</option>
                                     </select>
                                 </div>
-                                <div class="actions">
-                                    <button class="primary-btn" @click="showUploadPanel=true">文档上传</button>
-                                    <button class="secondary-btn" @click="openDingTalkPanel">钉钉文档同步</button>
-                                </div>
+                            </div>
+                            <div class="query-actions">
+                                <button class="secondary-btn" @click="resetDocumentQuery">重置</button>
+                                <button class="primary-btn" @click="loadDocList">查询</button>
                             </div>
                         </div>
                     </div>
@@ -262,229 +356,163 @@
                     <div class="panel">
                         <div class="panel-head">
                             <div class="panel-title">文档列表</div>
-                            <div class="page-meta">共 {{filteredDocs.length}} 条</div>
+                            <div class="page-meta">共 {{docList.length}} 条</div>
                         </div>
                         <div class="panel-body">
+                            <div class="list-toolbar">
+                                <div class="actions">
+                                    <button class="primary-btn" @click="openDocModal">新增文档</button>
+                                </div>
+                                <button class="secondary-btn" @click="loadDocList">刷新</button>
+                            </div>
                             <div class="table-wrap">
                                 <table>
                                     <thead>
                                     <tr>
+                                        <th>ID</th>
                                         <th>文档名称</th>
-                                        <th>来源</th>
+                                        <th>知识库</th>
+                                        <th>项目</th>
+                                        <th>模块</th>
                                         <th>类型</th>
                                         <th>切片数</th>
-                                        <th>权限</th>
-                                        <th>状态</th>
+                                        <th>向量状态</th>
                                         <th>更新时间</th>
                                         <th>操作</th>
                                     </tr>
                                     </thead>
-                                    <tbody v-if="filteredDocs.length">
-                                    <tr v-for="doc in filteredDocs" :key="doc.id">
-                                        <td>{{doc.name}}</td>
-                                        <td>{{doc.source}}</td>
+                                    <tbody v-if="docList.length">
+                                    <tr v-for="doc in docList" :key="doc.id">
+                                        <td>{{doc.id}}</td>
+                                        <td><div class="cell-ellipsis">{{doc.name}}</div></td>
+                                        <td>{{kbName(doc.kbId)}}</td>
+                                        <td>{{doc.projectCode || '-'}}</td>
+                                        <td>{{doc.bizModule || '-'}}</td>
                                         <td>{{doc.fileType}}</td>
                                         <td>{{doc.chunkCount}}</td>
-                                        <td>{{doc.permissionScope}}</td>
-                                        <td><span class="status" :class="{pending: doc.status==='同步中', idle: doc.status==='待处理'}">{{doc.status}}</span></td>
-                                        <td>{{doc.updateTime}}</td>
+                                        <td><span class="status" :class="docStatusClass(doc.status)">{{docStatusText(doc.status)}}</span></td>
+                                        <td>{{formatTime(doc.updateTime || doc.createTime)}}</td>
                                         <td>
-                                            <button class="ghost-btn" @click="openDocDetail(doc)">详情</button>
-                                            <button class="ghost-btn" @click="goSearchWithDoc(doc)">检索测试</button>
-                                            <button class="ghost-btn" @click="markDocStatus(doc, doc.status==='停用' ? '已入库' : '停用')">{{doc.status==='停用' ? '启用' : '停用'}}</button>
+                                            <button class="link-btn" @click="loadChunks(doc)">分片</button>
+                                            <button class="link-btn" @click="rebuildVector(doc)">重建</button>
+                                            <button class="link-btn danger" @click="deleteDocument(doc)">删除</button>
                                         </td>
                                     </tr>
                                     </tbody>
                                 </table>
-                                <div class="empty" v-if="!filteredDocs.length">暂无文档数据</div>
+                                <div class="empty" v-if="!docList.length">暂无文档数据</div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <section v-show="tab==='doc-upload'">
+                <section v-show="tab==='chunk-list'">
                     <div class="panel">
                         <div class="panel-head">
-                            <div class="panel-title">本地文档上传</div>
-                            <div class="hint">支持 PDF、DOCX、TXT、MD 等格式，上传后自动切片并入库</div>
-                        </div>
-                        <div class="panel-body">
-                            <div class="file-row">
-                                <input class="file-input" type="file" ref="pageUploadFile">
-                                <button class="primary-btn" @click="upload('pageUploadFile')">上传并入库</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="panel">
-                        <div class="panel-head">
-                            <div class="panel-title">钉钉文档同步</div>
-                            <div class="actions">
-                                <button class="secondary-btn" @click="openDingTalkPanel">选择钉钉文档</button>
-                            </div>
-                        </div>
-                        <div class="panel-body">
-                            <div class="hint">从钉钉知识库树中选择文档，同步成功后会进入知识库列表。</div>
-                        </div>
-                    </div>
-                </section>
-
-                <section v-show="tab==='doc-chunk-config'">
-                    <div class="panel">
-                        <div class="panel-head">
-                            <div class="panel-title">文档切片配置</div>
-                            <button class="primary-btn" @click="saveChunkConfig">保存配置</button>
-                        </div>
-                        <div class="panel-body">
-                            <div class="form-grid">
-                                <div>
-                                    <div class="field-name">切片大小</div>
-                                    <input class="form-input" type="number" v-model.number="chunkConfig.chunkSize">
-                                </div>
-                                <div>
-                                    <div class="field-name">重叠字符数</div>
-                                    <input class="form-input" type="number" v-model.number="chunkConfig.chunkOverlap">
-                                </div>
-                                <div>
-                                    <div class="field-name">分隔符策略</div>
-                                    <input class="form-input" v-model="chunkConfig.separators">
-                                </div>
-                                <div>
-                                    <div class="field-name">标题增强</div>
-                                    <select class="form-select" v-model="chunkConfig.enableTitleEnhance">
-                                        <option :value="true">启用</option>
-                                        <option :value="false">停用</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="hint" style="margin-top:14px">新配置会影响后续上传和同步；已入库文档需要重新入库后生效。</div>
-                        </div>
-                    </div>
-                </section>
-
-                <section v-show="tab==='doc-vector-config'">
-                    <div class="panel">
-                        <div class="panel-head">
-                            <div class="panel-title">向量模型配置</div>
-                            <button class="primary-btn" @click="saveVectorConfig">保存配置</button>
-                        </div>
-                        <div class="panel-body">
-                            <div class="form-grid">
-                                <div>
-                                    <div class="field-name">服务商</div>
-                                    <input class="form-input" v-model="vectorConfig.provider">
-                                </div>
-                                <div>
-                                    <div class="field-name">模型名称</div>
-                                    <input class="form-input" v-model="vectorConfig.model">
-                                </div>
-                                <div>
-                                    <div class="field-name">向量维度</div>
-                                    <input class="form-input" type="number" v-model.number="vectorConfig.dimension">
-                                </div>
-                                <div>
-                                    <div class="field-name">启用状态</div>
-                                    <select class="form-select" v-model="vectorConfig.enabled">
-                                        <option :value="true">启用</option>
-                                        <option :value="false">停用</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <label class="form-label">接口地址</label>
-                            <input class="form-input" v-model="vectorConfig.endpoint" placeholder="请输入 embedding endpoint">
-                            <div class="hint" style="margin-top:14px">接口地址读取时会做脱敏展示；保存后用于配置管理记录。</div>
-                        </div>
-                    </div>
-                </section>
-
-                <section v-show="tab==='doc-permission'">
-                    <div class="panel">
-                        <div class="panel-head">
-                            <div class="panel-title">权限配置</div>
-                            <button class="primary-btn" @click="savePermission">保存权限</button>
+                            <div class="panel-title">分片查询</div>
                         </div>
                         <div class="panel-body">
                             <div class="form-grid three">
                                 <div>
+                                    <div class="field-name">知识库</div>
+                                    <select class="form-select" v-model="chunkQuery.kbId">
+                                        <option value="">全部</option>
+                                        <option v-for="kb in kbList" :key="kb.id" :value="kb.id">{{kb.kbName}}</option>
+                                    </select>
+                                </div>
+                                <div>
                                     <div class="field-name">文档</div>
-                                    <select class="form-select" v-model="permissionForm.documentId">
+                                    <select class="form-select" v-model="chunkQuery.docId">
                                         <option value="">请选择文档</option>
-                                        <option v-for="doc in docList" :key="doc.id" :value="doc.id">{{doc.name}}</option>
+                                        <option v-for="doc in chunkDocOptions" :key="doc.id" :value="doc.id">{{doc.name}}</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <div class="field-name">权限范围</div>
-                                    <select class="form-select" v-model="permissionForm.permissionScope">
-                                        <option value="私有">私有</option>
-                                        <option value="全员可读">全员可读</option>
-                                        <option value="指定用户">指定用户</option>
-                                        <option value="指定角色">指定角色</option>
-                                    </select>
+                                    <div class="field-name">标题</div>
+                                    <input class="form-input" v-model="chunkQuery.title" placeholder="请输入标题">
                                 </div>
                                 <div>
-                                    <div class="field-name">授权对象</div>
-                                    <input class="form-input" v-model="permissionForm.subjectValue" placeholder="用户名或角色">
+                                    <div class="field-name">关键词</div>
+                                    <input class="form-input" v-model="chunkQuery.keyword" placeholder="请输入关键词">
                                 </div>
+                            </div>
+                            <div class="query-actions">
+                                <button class="secondary-btn" @click="resetChunkQuery">重置</button>
+                                <button class="primary-btn" @click="loadChunksBySelectedDoc">查询</button>
                             </div>
                         </div>
                     </div>
 
                     <div class="panel">
                         <div class="panel-head">
-                            <div class="panel-title">授权记录</div>
-                            <button class="secondary-btn" @click="loadPermissions">刷新</button>
+                            <div class="panel-title">分片列表</div>
+                            <div class="page-meta">共 {{chunkList.length}} 条</div>
                         </div>
                         <div class="panel-body">
+                            <div class="list-toolbar">
+                                <div class="hint">按查询条件从后端加载分片，支持知识库、文档、标题和关键词筛选。</div>
+                                <button class="secondary-btn" @click="loadChunksBySelectedDoc">刷新</button>
+                            </div>
                             <div class="table-wrap">
                                 <table>
                                     <thead>
                                     <tr>
+                                        <th>ID</th>
                                         <th>文档</th>
-                                        <th>对象类型</th>
-                                        <th>授权对象</th>
-                                        <th>权限</th>
+                                        <th>序号</th>
+                                        <th>标题</th>
+                                        <th>关键词</th>
+                                        <th>内容摘要</th>
+                                        <th>创建时间</th>
+                                        <th>操作</th>
                                     </tr>
                                     </thead>
-                                    <tbody v-if="permissionList.length">
-                                    <tr v-for="item in permissionList" :key="item.id">
-                                        <td>{{item.documentName}}</td>
-                                        <td>{{item.subjectType}}</td>
-                                        <td>{{item.subjectValue}}</td>
-                                        <td>{{item.permission}}</td>
+                                    <tbody v-if="chunkList.length">
+                                    <tr v-for="chunk in chunkList" :key="chunk.id">
+                                        <td>{{chunk.id}}</td>
+                                        <td>{{chunk.docName || docName(chunk.docId)}}</td>
+                                        <td>{{chunk.chunkIndex}}</td>
+                                        <td><div class="cell-ellipsis">{{chunk.title || '-'}}</div></td>
+                                        <td><div class="cell-ellipsis">{{chunk.keywords || '-'}}</div></td>
+                                        <td><div class="cell-ellipsis">{{chunk.content || '-'}}</div></td>
+                                        <td>{{formatTime(chunk.createTime)}}</td>
+                                        <td>
+                                            <button class="link-btn" @click="openChunkDetail(chunk)">详情</button>
+                                            <button class="link-btn danger" @click="deleteChunk(chunk)">删除</button>
+                                        </td>
                                     </tr>
                                     </tbody>
                                 </table>
-                                <div class="empty" v-if="!permissionList.length">暂无授权记录</div>
+                                <div class="empty" v-if="!chunkList.length">暂无分片数据</div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <section v-show="tab==='doc-search-test'">
+                <section v-show="tab==='query-test'">
                     <div class="panel">
                         <div class="panel-head">
-                            <div class="panel-title">检索测试</div>
-                            <button class="primary-btn" @click="runSearchTest">开始检索</button>
+                            <div class="panel-title">输入问题返回切片</div>
+                            <button class="primary-btn" @click="runSearchTest">检索切片</button>
                         </div>
                         <div class="panel-body">
                             <div class="form-grid">
                                 <div>
-                                    <div class="field-name">测试问题</div>
+                                    <div class="field-name">问题</div>
                                     <textarea class="textarea" v-model="searchForm.question" placeholder="请输入要测试的问题"></textarea>
                                 </div>
                                 <div>
+                                    <div class="field-name">知识库</div>
+                                    <select class="form-select" v-model="searchForm.kbId">
+                                        <option value="">全部知识库</option>
+                                        <option v-for="kb in kbList" :key="kb.id" :value="kb.id">{{kb.kbName}}</option>
+                                    </select>
                                     <div class="field-name">TopK</div>
                                     <input class="form-input" type="number" v-model.number="searchForm.topK">
-                                    <label class="form-label">限定文档</label>
-                                    <select class="form-select" v-model="searchForm.documentId">
-                                        <option value="">全部文档</option>
-                                        <option v-for="doc in docList" :key="doc.id" :value="doc.id">{{doc.name}}</option>
-                                    </select>
-                                    <label class="form-label">回答生成</label>
-                                    <select class="form-select" v-model="searchIncludeAnswer">
-                                        <option :value="false">仅检索命中</option>
-                                        <option :value="true">检索并生成回答</option>
-                                    </select>
+                                    <label class="form-label">项目编码</label>
+                                    <input class="form-input" v-model="searchForm.projectCode">
+                                    <label class="form-label">业务模块</label>
+                                    <input class="form-input" v-model="searchForm.bizModule">
                                 </div>
                             </div>
                         </div>
@@ -493,296 +521,166 @@
                     <div class="panel" v-if="searchResult">
                         <div class="panel-head">
                             <div class="panel-title">检索结果</div>
+                            <div class="page-meta">候选 {{searchResult.totalCandidates || 0}}，返回 {{searchResult.total || 0}}</div>
                         </div>
                         <div class="panel-body">
                             <div class="result-list">
-                                <div class="result-item" v-for="hit in searchResult.hits" :key="hit.rank">
-                                    <div class="result-title">命中 {{hit.rank}}</div>
+                                <div class="result-item" v-for="(hit,index) in searchResult.hits" :key="hit.chunkId || index">
+                                    <div class="result-title">{{index + 1}}. {{hit.docName}} / {{hit.title || '无标题'}} / 分数 {{formatScore(hit.score)}}</div>
                                     <div class="result-content">{{hit.content}}</div>
                                 </div>
                             </div>
-                            <label class="form-label" v-if="searchResult.answer">回答预览</label>
-                            <div class="result-item" v-if="searchResult.answer">
-                                <div class="result-content">{{searchResult.answer}}</div>
-                            </div>
                         </div>
                     </div>
-                </section>
 
-                <section v-show="tab==='sessions'" class="split">
-                    <div class="panel chat-panel">
+                    <div class="panel chat-panel" style="height:auto;min-height:460px">
                         <div class="panel-head">
-                            <div class="panel-title">会话工作台</div>
-                            <button class="secondary-btn" @click="newSession">新建会话</button>
+                            <div class="panel-title">流式聊天问答</div>
+                            <button class="secondary-btn" @click="clearQueryChat">清空</button>
                         </div>
-                        <div class="chat-list" ref="chatBox">
-                            <div v-for="(item, index) in list" :key="index">
+                        <div class="chat-list" ref="queryChatBox" style="min-height:300px">
+                            <div v-for="(item, index) in queryChatList" :key="index">
                                 <div class="message-row user">
                                     <div class="message">{{item.question}}</div>
                                 </div>
                                 <div class="message-row">
-                                    <div class="message" :class="{'streaming': index === list.length - 1 && isStreaming}" v-html="renderMarkdown(item.answer)"></div>
+                                    <div class="message" :class="{'streaming': index === queryChatList.length - 1 && queryStreaming}" v-html="renderMarkdown(item.answer)"></div>
                                 </div>
                             </div>
-                            <div class="empty" v-if="list.length===0">暂无会话内容</div>
+                            <div class="empty" v-if="queryChatList.length===0">暂无问答内容</div>
                         </div>
                         <div class="input-strip">
-                            <input v-model="question" placeholder="请输入会话内容" @keyup.enter="send">
-                            <button class="primary-btn" @click="send" :disabled="isStreaming">发送</button>
-                        </div>
-                    </div>
-
-                    <aside>
-                        <div class="side-card">
-                            <div class="panel-head">
-                                <div class="panel-title">会话信息</div>
-                            </div>
-                            <div class="panel-body">
-                                <div class="field-name">当前状态</div>
-                                <div class="status" :class="{pending:isStreaming}">{{isStreaming ? '生成中' : '空闲'}}</div>
-                                <div class="field-name" style="margin-top:18px">消息数量</div>
-                                <div class="metric-num">{{list.length}}</div>
-                            </div>
-                        </div>
-                        <div class="side-card">
-                            <div class="panel-head">
-                                <div class="panel-title">最近文档</div>
-                            </div>
-                            <div class="panel-body">
-                                <div v-for="doc in docList.slice(0,5)" :key="doc.id" style="padding:9px 0;border-bottom:1px solid #edf1f5">
-                                    <div style="font-weight:700">{{doc.name}}</div>
-                                    <div class="page-meta">{{doc.source}} · {{doc.status}}</div>
-                                </div>
-                                <div class="empty" v-if="docList.length===0" style="padding:20px 0">暂无文档</div>
-                            </div>
-                        </div>
-                    </aside>
-                </section>
-
-                <section v-show="tab==='agents'">
-                    <div class="panel">
-                        <div class="panel-head">
-                            <div class="panel-title">Agent列表</div>
-                            <button class="primary-btn">新增Agent</button>
-                        </div>
-                        <div class="panel-body">
-                            <div class="table-wrap">
-                                <table>
-                                    <thead>
-                                    <tr>
-                                        <th>名称</th>
-                                        <th>归属部门</th>
-                                        <th>状态</th>
-                                        <th>更新时间</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <tr>
-                                        <td>文档处理助手</td>
-                                        <td>运营中心</td>
-                                        <td><span class="status">启用</span></td>
-                                        <td>2026-05-21</td>
-                                    </tr>
-                                    <tr>
-                                        <td>需求整理助手</td>
-                                        <td>产品中心</td>
-                                        <td><span class="status idle">停用</span></td>
-                                        <td>2026-05-21</td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                            <input v-model="queryQuestion" placeholder="请输入问题，按回车发送" @keyup.enter="sendQueryStream">
+                            <button class="primary-btn" @click="sendQueryStream" :disabled="queryStreaming">发送</button>
                         </div>
                     </div>
                 </section>
 
-                <section v-show="tab==='requirements'">
-                    <div class="panel">
-                        <div class="panel-head">
-                            <div class="panel-title">需求列表</div>
-                            <button class="primary-btn">新增需求</button>
-                        </div>
-                        <div class="panel-body">
-                            <div class="query-grid" style="grid-template-columns:1.4fr 180px 180px auto;margin-bottom:16px">
-                                <div>
-                                    <div class="field-name">需求标题</div>
-                                    <input class="form-input" placeholder="请输入需求标题">
-                                </div>
-                                <div>
-                                    <div class="field-name">优先级</div>
-                                    <select class="form-select">
-                                        <option>全部</option>
-                                        <option>高</option>
-                                        <option>中</option>
-                                        <option>低</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <div class="field-name">状态</div>
-                                    <select class="form-select">
-                                        <option>全部</option>
-                                        <option>待处理</option>
-                                        <option>处理中</option>
-                                        <option>已完成</option>
-                                    </select>
-                                </div>
-                                <div class="actions">
-                                    <button class="secondary-btn">重置</button>
-                                    <button class="primary-btn">查询</button>
-                                </div>
-                            </div>
-                            <div class="table-wrap">
-                                <table>
-                                    <thead>
-                                    <tr>
-                                        <th>需求标题</th>
-                                        <th>优先级</th>
-                                        <th>状态</th>
-                                        <th>创建时间</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <tr>
-                                        <td>文档批量同步优化</td>
-                                        <td>高</td>
-                                        <td><span class="status pending">处理中</span></td>
-                                        <td>2026-05-21</td>
-                                    </tr>
-                                    <tr>
-                                        <td>会话结果导出</td>
-                                        <td>中</td>
-                                        <td><span class="status idle">待处理</span></td>
-                                        <td>2026-05-21</td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </section>
             </main>
         </section>
 
-        <div class="drawer-mask" v-if="showUploadPanel" @click.self="showUploadPanel=false">
-            <section class="drawer">
-                <div class="drawer-head">
-                    <div class="drawer-title">文档上传</div>
-                    <button class="close-btn" @click="showUploadPanel=false">×</button>
+        <div class="modal-mask" v-if="modalMode" @click.self="closeModal">
+            <section class="modal" :class="{small: modalMode === 'chunk-detail'}">
+                <div class="modal-head">
+                    <div class="modal-title">{{modalTitle}}</div>
+                    <button class="close-btn" @click="closeModal">×</button>
                 </div>
-                <div class="drawer-body">
-                    <div class="panel">
-                        <div class="panel-head">
-                            <div class="panel-title">上传文件</div>
-                        </div>
-                        <div class="panel-body">
-                            <div class="file-row">
-                                <input class="file-input" type="file" ref="drawerUploadFile">
-                                <button class="primary-btn" @click="upload('drawerUploadFile')">上传并入库</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
 
-        <div class="drawer-mask" v-if="showDingTalkPanel" @click.self="showDingTalkPanel=false">
-            <section class="drawer">
-                <div class="drawer-head">
-                    <div class="drawer-title">钉钉文档同步</div>
-                    <button class="close-btn" @click="showDingTalkPanel=false">×</button>
-                </div>
-                <div class="drawer-body">
-                    <div class="toolbar">
-                        <div class="page-meta">已选 {{selectedDocIds.length}} 个文档</div>
-                        <div class="actions">
-                            <button class="secondary-btn" @click="loadTree" :disabled="treeLoading">刷新</button>
-                            <button class="primary-btn" @click="syncDocs" :disabled="selectedDocIds.length===0 || treeLoading">同步选中</button>
+                <div class="modal-body" v-if="modalMode === 'kb-create' || modalMode === 'kb-edit'">
+                    <div class="form-grid">
+                        <div>
+                            <div class="field-name">知识库编码</div>
+                            <input class="form-input" v-model="kbForm.kbCode" placeholder="如 business_doc">
+                        </div>
+                        <div>
+                            <div class="field-name">知识库名称</div>
+                            <input class="form-input" v-model="kbForm.kbName" placeholder="如 业务文档">
+                        </div>
+                        <div>
+                            <div class="field-name">知识库类型</div>
+                            <select class="form-select" v-model.number="kbForm.kbType">
+                                <option :value="1">业务文档</option>
+                                <option :value="2">技术文档</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="field-name">描述</div>
+                            <input class="form-input" v-model="kbForm.description" placeholder="请输入知识库说明">
                         </div>
                     </div>
-                    <div class="tree-box">
-                        <div v-if="treeLoading" class="empty">加载中...</div>
-                        <div v-else-if="treeError" class="empty danger-text">{{treeError}}</div>
-                        <template v-else>
-                            <tree-item
-                                    v-for="node in docTree"
-                                    :key="node.key"
-                                    :node="node"
-                                    :parent-space-id="kbSpaceId"
-                                    :selected-doc-ids="selectedDocIds"
-                                    @toggle="handleToggle"
-                                    @update-selection="updateSelection">
-                            </tree-item>
-                            <div v-if="docTree.length===0" class="empty">暂无文档</div>
-                        </template>
+                </div>
+
+                <div class="modal-body" v-if="modalMode === 'kb-permission'">
+                    <div class="form-grid">
+                        <div>
+                            <div class="field-name">知识库</div>
+                            <select class="form-select" v-model="kbPermissionForm.kbId">
+                                <option value="">请选择知识库</option>
+                                <option v-for="kb in kbList" :key="kb.id" :value="kb.id">{{kb.kbName}}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="field-name">授权对象类型</div>
+                            <select class="form-select" v-model="kbPermissionForm.subjectType">
+                                <option value="USER">用户</option>
+                                <option value="ROLE">角色</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="field-name">授权对象</div>
+                            <input class="form-input" v-model="kbPermissionForm.subjectId" placeholder="用户名或角色编码">
+                        </div>
+                        <div>
+                            <div class="field-name">权限</div>
+                            <select class="form-select" v-model="kbPermissionForm.permissionType">
+                                <option value="READ">可读</option>
+                                <option value="WRITE">可写</option>
+                                <option value="ADMIN">管理</option>
+                            </select>
+                        </div>
                     </div>
+                    <div class="hint" style="margin-top:14px">当前版本知识库默认全部可见；后端权限接口补齐后接入保存。</div>
+                </div>
+
+                <div class="modal-body" v-if="modalMode === 'doc-create'">
+                    <div class="form-grid">
+                        <div>
+                            <div class="field-name">知识库</div>
+                            <select class="form-select" v-model="uploadForm.kbId">
+                                <option value="">请选择知识库</option>
+                                <option v-for="kb in kbList" :key="kb.id" :value="kb.id">{{kb.kbName}}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="field-name">项目编码</div>
+                            <input class="form-input" v-model="uploadForm.projectCode" placeholder="如 activity">
+                        </div>
+                        <div>
+                            <div class="field-name">业务模块</div>
+                            <input class="form-input" v-model="uploadForm.bizModule" placeholder="如 ai">
+                        </div>
+                        <div>
+                            <div class="field-name">标签</div>
+                            <input class="form-input" v-model="uploadForm.tags" placeholder="空格分隔">
+                        </div>
+                    </div>
+                    <label class="form-label">备注</label>
+                    <input class="form-input" v-model="uploadForm.remark" placeholder="可选">
+                    <label class="form-label">选择文件</label>
+                    <input class="file-input" type="file" ref="modalUploadFile">
+                </div>
+
+                <div class="modal-body" v-if="modalMode === 'chunk-detail' && selectedChunk">
+                    <div class="field-name">标题</div>
+                    <input class="form-input" :value="selectedChunk.title || '-'" disabled>
+                    <div class="field-name" style="margin-top:14px">关键词</div>
+                    <div class="pre-box">{{selectedChunk.keywords || '-'}}</div>
+                    <div class="field-name" style="margin-top:14px">内容</div>
+                    <div class="pre-box">{{selectedChunk.content}}</div>
+                    <div class="field-name" style="margin-top:14px">contentHash</div>
+                    <input class="form-input" :value="selectedChunk.contentHash || '-'" disabled>
+                </div>
+
+                <div class="modal-foot">
+                    <button class="secondary-btn" @click="closeModal">取消</button>
+                    <button class="primary-btn" v-if="modalMode === 'kb-create' || modalMode === 'kb-edit'" @click="saveKnowledgeBase">保存</button>
+                    <button class="primary-btn" v-if="modalMode === 'kb-permission'" @click="saveKbPermission">保存权限</button>
+                    <button class="primary-btn" v-if="modalMode === 'doc-create'" @click="upload('modalUploadFile')">上传</button>
                 </div>
             </section>
         </div>
     </div>
 </div>
 
-<script type="text/x-template" id="tree-item-template">
-    <div>
-        <div class="tree-line" @click="handleClick">
-            <input v-if="node.type !== 'FOLDER'"
-                   type="checkbox"
-                   :checked="selectedDocIds.some(item => item.docId === node.key)"
-                   @change="handleCheck"
-                   @click.stop>
-            <span class="tree-type">{{node.type==='FOLDER' ? '目录' : '文档'}}</span>
-            <span class="tree-title">{{node.title}}</span>
-            <span v-if="node.type==='FOLDER'" class="page-meta">
-                {{node.loading ? '加载' : (node.expanded ? '收起' : '展开')}}
-            </span>
-        </div>
-        <div v-if="node.children && node.expanded" class="tree-children">
-            <tree-item
-                    v-for="child in node.children"
-                    :key="child.key"
-                    :node="child"
-                    :parent-space-id="node.key"
-                    :selected-doc-ids="selectedDocIds"
-                    @toggle="$emit('toggle', $event)"
-                    @update-selection="$emit('update-selection', $event)">
-            </tree-item>
-        </div>
-    </div>
-</script>
-
 <script>
     const { createApp } = Vue;
 
-    const TreeItem = {
-        name: 'TreeItem',
-        template: '#tree-item-template',
-        props: {
-            node: Object,
-            selectedDocIds: Array,
-            parentSpaceId: String
-        },
-        methods: {
-            handleClick() {
-                if (this.node.type === 'FOLDER') {
-                    this.$emit('toggle', this.node);
-                }
-            },
-            handleCheck(e) {
-                if (this.node.type === 'FOLDER') return;
-                this.$emit('update-selection', {
-                    key: this.node.key,
-                    checked: e.target.checked,
-                    parentSpaceId: this.parentSpaceId
-                });
-            }
-        }
-    };
-
     createApp({
-        components: { TreeItem },
         data() {
             return {
                 ssoBaseUrl: 'https://dev.zzss.com/auc',
                 ssoApp: 'Tm60z4',
+                apiBaseUrl: window.location.protocol === 'file:' ? 'http://127.0.0.1:8888' : '',
                 ssoTestHeaders: {
                     'QZ-Access-User': 'test',
                     'QZ-Access-Sign': 'test',
@@ -795,46 +693,70 @@
                 form: { username: localStorage.getItem('userName') || '', password: '', confirmPassword: '' },
                 menus: [
                     {
-                        key: 'documents',
+                        key: 'kb',
+                        code: 'KB',
+                        name: '知识库管理',
+                        path: '/kb',
+                        expanded: true,
+                        children: [
+                            { key: 'kb-list', name: '知识库列表', path: '/kb/list' }
+                        ]
+                    },
+                    {
+                        key: 'doc',
                         code: 'DOC',
                         name: '文档管理',
                         path: '/documents',
                         expanded: true,
                         children: [
-                            { key: 'doc-kb', name: '知识库管理', path: '/documents/kb' },
-                            { key: 'doc-upload', name: '文档上传', path: '/documents/upload' },
-                            { key: 'doc-chunk-config', name: '文档切片配置', path: '/documents/chunk-config' },
-                            { key: 'doc-vector-config', name: '向量模型配置', path: '/documents/vector-config' },
-                            { key: 'doc-permission', name: '权限配置', path: '/documents/permissions' },
-                            { key: 'doc-search-test', name: '检索测试', path: '/documents/search-test' }
+                            { key: 'doc-list', name: '文档列表', path: '/documents/list' }
                         ]
                     },
-                    { key: 'sessions', code: 'SES', name: '会话管理', path: '/sessions' },
-                    { key: 'agents', code: 'AGT', name: 'Agent管理', path: '/agents' },
-                    { key: 'requirements', code: 'REQ', name: '需求管理', path: '/requirements' }
+                    {
+                        key: 'chunk',
+                        code: 'CHK',
+                        name: 'Chunk管理',
+                        path: '/chunks',
+                        expanded: true,
+                        children: [
+                            { key: 'chunk-list', name: '分片列表', path: '/chunks/list' }
+                        ]
+                    },
+                    {
+                        key: 'query',
+                        code: 'QRY',
+                        name: '查询测试',
+                        path: '/query',
+                        expanded: true,
+                        children: [
+                            { key: 'query-test', name: '查询测试', path: '/query/test' }
+                        ]
+                    }
                 ],
-                tab: 'doc-kb',
+                tab: 'kb-list',
                 question: '',
                 list: [],
-                selectedDocIds: [],
                 loading: false,
                 isStreaming: false,
-                docTree: [],
-                kbSpaceId: '',
-                treeLoading: false,
-                treeError: '',
-                showUploadPanel: false,
-                showDingTalkPanel: false,
-                docQuery: { keyword: '', source: '', status: '' },
-                appliedDocQuery: { keyword: '', source: '', status: '' },
+                modalMode: '',
+                modalTitle: '',
+                kbList: [],
+                kbQuery: { kbCode: '', kbName: '', kbType: '', status: '' },
+                kbForm: { kbCode: '', kbName: '', kbType: 1, description: '' },
+                editingKb: null,
+                kbPermissionForm: { kbId: '', subjectType: 'USER', subjectId: '', permissionType: 'READ' },
+                uploadForm: { kbId: '', projectCode: '', bizModule: '', tags: '', remark: '' },
+                documentQuery: { kbId: '', docName: '', projectCode: '', bizModule: '', docType: '', status: '' },
+                chunkQuery: { kbId: '', docId: '', title: '', keyword: '' },
+                chunkList: [],
+                selectedChunk: null,
                 docList: [],
-                chunkConfig: { chunkSize: 500, chunkOverlap: 0, separators: '段落,换行,句号', enableTitleEnhance: true },
-                vectorConfig: { provider: 'DashScope', model: 'text-embedding-v2', dimension: 1536, endpoint: '', enabled: true },
-                permissionForm: { documentId: '', permissionScope: '私有', subjectType: 'USER', subjectValue: '', permission: 'READ' },
-                permissionList: [],
-                searchForm: { question: '', topK: 3, documentId: '' },
+                searchForm: { kbId: '', question: '', projectCode: '', bizModule: '', docType: '', topK: 5, vectorTopK: 20, keywordTopK: 20, enableRerank: true, includeSources: true },
                 searchIncludeAnswer: false,
                 searchResult: null,
+                queryQuestion: '',
+                queryChatList: [],
+                queryStreaming: false,
                 captchaX: 0,
                 captchaVerified: false,
                 captchaText: '拖动滑块完成验证',
@@ -852,20 +774,15 @@
                 const name = this.form.username || 'U';
                 return name.substring(0, 1).toUpperCase();
             },
-            filteredDocs() {
-                const keyword = this.appliedDocQuery.keyword.trim().toLowerCase();
-                return this.docList.filter(doc => {
-                    const matchKeyword = !keyword || doc.name.toLowerCase().includes(keyword);
-                    const matchSource = !this.appliedDocQuery.source || doc.source === this.appliedDocQuery.source;
-                    const matchStatus = !this.appliedDocQuery.status || doc.status === this.appliedDocQuery.status;
-                    return matchKeyword && matchSource && matchStatus;
-                });
+            chunkDocOptions() {
+                return this.docList.filter(doc => !this.chunkQuery.kbId || String(doc.kbId) === String(this.chunkQuery.kbId));
             }
         },
         mounted() {
             this.restoreRoute();
             window.addEventListener('popstate', this.restoreRoute);
 
+            axios.defaults.baseURL = this.apiBaseUrl;
             axios.defaults.headers.common['app'] = this.ssoApp;
             this.applyAuthHeaders();
 
@@ -920,7 +837,7 @@
             restoreRoute() {
                 const path = window.location.pathname;
                 const target = this.flatMenus.find(item => item.path === path);
-                this.tab = target ? target.key : 'doc-kb';
+                this.tab = target ? target.key : 'kb-list';
             },
             toggleMode() {
                 this.isRegister = !this.isRegister;
@@ -1059,11 +976,8 @@
                 }
             },
             loadInitialData() {
-                this.getList();
+                this.loadKbList();
                 this.loadDocList();
-                this.loadDocSettings();
-                this.loadPermissions();
-                this.loadTree();
             },
             isSsoSuccess(body) {
                 return body?.code === 1 || body?.code === 200 || body?.success === true || body?.respCode === 1;
@@ -1089,58 +1003,188 @@
                     this.loading = false;
                 }
             },
-            applyDocQuery() {
-                this.appliedDocQuery = { ...this.docQuery };
-                this.loadDocList();
+            unwrapData(body) {
+                return body?.data ?? body?.result ?? body;
             },
-            resetDocQuery() {
-                this.docQuery = { keyword: '', source: '', status: '' };
-                this.applyDocQuery();
+            apiPath(path) {
+                return (this.apiBaseUrl || '') + path;
+            },
+            isApiSuccess(body) {
+                return body?.respCode === 1 || body?.code === 200 || body?.code === 1 || body?.success === true;
+            },
+            formatTime(value) {
+                if (!value) return '-';
+                if (Array.isArray(value)) {
+                    const [year, month, day, hour = 0, minute = 0, second = 0] = value;
+                    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`;
+                }
+                return String(value).replace('T', ' ').slice(0, 19);
+            },
+            formatScore(value) {
+                return value === null || value === undefined ? '-' : Number(value).toFixed(4);
+            },
+            kbTypeText(type) {
+                if (type === 1) return '业务文档';
+                if (type === 2) return '技术文档';
+                return '其他';
+            },
+            kbName(kbId) {
+                const kb = this.kbList.find(item => String(item.id) === String(kbId));
+                return kb ? kb.kbName : (kbId || '-');
+            },
+            docName(docId) {
+                const doc = this.docList.find(item => String(item.id) === String(docId));
+                return doc ? doc.name : (docId || '-');
+            },
+            docStatusText(status) {
+                const map = { BUILDING: '构建中', INDEXED: '已向量化', FAILED: '失败' };
+                return map[status] || status || '-';
+            },
+            docStatusClass(status) {
+                return {
+                    pending: status === 'BUILDING',
+                    idle: !status,
+                    fail: status === 'FAILED'
+                };
+            },
+            async loadKbList() {
+                try {
+                    const res = await axios.get('/api/rag/kb/list', { params: this.cleanPayload(this.kbQuery) });
+                    this.kbList = this.unwrapData(res.data) || [];
+                    if (!this.uploadForm.kbId && this.kbList.length) {
+                        this.uploadForm.kbId = this.kbList[0].id;
+                    }
+                } catch (e) {
+                    console.error('获取知识库失败：', e);
+                }
+            },
+            resetKbQuery() {
+                this.kbQuery = { kbCode: '', kbName: '', kbType: '', status: '' };
+                this.loadKbList();
+            },
+            resetKbForm() {
+                this.editingKb = null;
+                this.kbForm = { kbCode: '', kbName: '', kbType: 1, description: '' };
+            },
+            openKbModal(mode, kb) {
+                this.resetKbForm();
+                this.modalMode = mode === 'edit' ? 'kb-edit' : 'kb-create';
+                this.modalTitle = mode === 'edit' ? '编辑知识库' : '新增知识库';
+                if (kb) {
+                    this.editingKb = kb;
+                    this.kbForm = {
+                        kbCode: kb.kbCode,
+                        kbName: kb.kbName,
+                        kbType: kb.kbType || 1,
+                        description: kb.description || ''
+                    };
+                }
+            },
+            closeModal() {
+                this.modalMode = '';
+                this.modalTitle = '';
+                this.selectedChunk = null;
+            },
+            async saveKnowledgeBase() {
+                if (!this.kbForm.kbCode || !this.kbForm.kbName) {
+                    alert('请填写知识库编码和名称');
+                    return;
+                }
+                try {
+                    this.loading = true;
+                    const res = this.editingKb
+                        ? await axios.put('/api/rag/kb/' + this.editingKb.id, this.kbForm)
+                        : await axios.post('/api/rag/kb/create', this.kbForm);
+                    if (this.isApiSuccess(res.data)) {
+                        await this.loadKbList();
+                        this.resetKbForm();
+                        this.closeModal();
+                        alert(this.editingKb ? '编辑成功' : '新增成功');
+                    } else {
+                        alert(res.data?.respMessage || res.data?.msg || '保存失败');
+                    }
+                } catch (e) {
+                    alert('保存失败：' + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+            async toggleKnowledgeBase(kb) {
+                const nextStatus = kb.status === 1 ? 0 : 1;
+                try {
+                    this.loading = true;
+                    const res = await axios.put('/api/rag/kb/' + kb.id + '/status', { status: nextStatus });
+                    if (this.isApiSuccess(res.data)) {
+                        await this.loadKbList();
+                    } else {
+                        alert(res.data?.respMessage || res.data?.msg || '状态更新失败');
+                    }
+                } catch (e) {
+                    alert('状态更新失败：' + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+            openKbPermission(kb) {
+                this.kbPermissionForm.kbId = kb.id;
+                this.modalMode = 'kb-permission';
+                this.modalTitle = '权限配置';
+            },
+            async saveKbPermission() {
+                if (!this.kbPermissionForm.kbId || !this.kbPermissionForm.subjectId) {
+                    alert('请选择知识库并填写授权对象');
+                    return;
+                }
+                try {
+                    this.loading = true;
+                    const res = await axios.put('/api/rag/kb/permission', this.kbPermissionForm);
+                    if (this.isApiSuccess(res.data)) {
+                        this.closeModal();
+                        alert('权限保存成功');
+                    } else {
+                        alert(res.data?.respMessage || res.data?.msg || '权限保存失败');
+                    }
+                } catch (e) {
+                    alert('权限保存失败：' + e.message);
+                } finally {
+                    this.loading = false;
+                }
             },
             normalizeDoc(doc) {
                 return {
                     id: doc.id,
-                    name: doc.filename || doc.name || '',
-                    source: doc.source || '本地上传',
-                    status: doc.status || '已入库',
-                    fileType: doc.fileType || '未知',
+                    kbId: doc.kbId,
+                    kbCode: doc.kbCode,
+                    name: doc.docName || doc.filename || doc.name || '',
+                    status: doc.status || 'BUILDING',
+                    fileType: (doc.docType || doc.fileType || '未知').toUpperCase(),
                     fileSize: doc.fileSize || 0,
+                    fileUrl: doc.fileUrl || '',
                     chunkCount: doc.chunkCount || 0,
-                    permissionScope: doc.permissionScope || '私有',
-                    updateTime: doc.updateTime || doc.createTime || ''
+                    projectCode: doc.projectCode || '',
+                    bizModule: doc.bizModule || '',
+                    tags: doc.tags || '',
+                    contentHash: doc.contentHash || '',
+                    createTime: doc.createTime || '',
+                    updateTime: doc.updateTime || ''
                 };
+            },
+            resetDocumentQuery() {
+                this.documentQuery = { kbId: '', docName: '', projectCode: '', bizModule: '', docType: '', status: '' };
+                this.loadDocList();
             },
             async loadDocList() {
                 try {
-                    const params = { ...this.appliedDocQuery };
-                    let res = await axios.get('/api/doc/list', { params });
-                    this.docList = (res.data.data || []).map(this.normalizeDoc);
+                    const res = await axios.get('/api/rag/document/list', { params: this.cleanPayload(this.documentQuery) });
+                    this.docList = (this.unwrapData(res.data) || []).map(this.normalizeDoc);
                 } catch (e) {
                     console.error('获取文档列表失败：', e);
                 }
             },
-            async loadDocSettings() {
-                try {
-                    const chunkRes = await axios.get('/api/doc/chunk-config');
-                    this.chunkConfig = { ...this.chunkConfig, ...(chunkRes.data.data || {}) };
-                    const vectorRes = await axios.get('/api/doc/vector-config');
-                    this.vectorConfig = { ...this.vectorConfig, ...(vectorRes.data.data || {}) };
-                } catch (e) {
-                    console.error('获取文档配置失败：', e);
-                }
-            },
-            addDocRecord(name, source, status = '已入库') {
-                this.docList.unshift({
-                    id: Date.now() + '_' + Math.random().toString(16).slice(2),
-                    name,
-                    source,
-                    status,
-                    updateTime: new Date().toLocaleString('zh-CN', { hour12: false })
-                });
-            },
-            openDingTalkPanel() {
-                this.showDingTalkPanel = true;
-                if (!this.docTree.length) this.loadTree();
+            openDocModal() {
+                this.uploadForm = { kbId: this.uploadForm.kbId || (this.kbList[0]?.id || ''), projectCode: '', bizModule: '', tags: '', remark: '' };
+                this.modalMode = 'doc-create';
+                this.modalTitle = '新增文档';
             },
             async upload(refName) {
                 const inputRef = this.$refs[refName];
@@ -1149,18 +1193,25 @@
                     alert('请选择文件');
                     return;
                 }
+                if (!this.uploadForm.kbId) {
+                    alert('请选择知识库');
+                    return;
+                }
                 try {
                     let fd = new FormData();
                     fd.append('file', input.files[0]);
+                    Object.entries(this.uploadForm).forEach(([key, value]) => {
+                        if (value !== '' && value !== null && value !== undefined) fd.append(key, value);
+                    });
                     this.loading = true;
-                    let res = await axios.post('/api/doc/upload', fd);
-                    if (res.data.code === 200) {
+                    let res = await axios.post('/api/rag/document/upload', fd);
+                    if (this.isApiSuccess(res.data)) {
                         await this.loadDocList();
-                        this.showUploadPanel = false;
+                        this.closeModal();
                         input.value = '';
-                        alert('上传成功');
+                        alert('上传成功，文档正在异步构建');
                     } else {
-                        alert('上传失败：' + res.data.msg);
+                        alert('上传失败：' + (res.data.respMessage || res.data.msg || '接口返回异常'));
                     }
                 } catch (e) {
                     alert('上传失败：' + e.message);
@@ -1180,28 +1231,34 @@
 
                 try {
                     this.isStreaming = true;
-                    const encodedQuestion = encodeURIComponent(userQuestion);
-                    const encodedToken = encodeURIComponent(this.token);
-                    const eventSource = new EventSource(`/api/rag/ask-stream?q=${encodedQuestion}&accessToken=${encodedToken}&accessUser=test&accessSign=test&sessionToken=test`);
-
-                    eventSource.onmessage = (event) => {
-                        fullAnswer += event.data;
+                    const response = await fetch(this.apiPath('/api/rag/query/ask-stream'), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            app: this.ssoApp,
+                            Authorization: 'Bearer ' + this.token,
+                            ...this.ssoTestHeaders
+                        },
+                        body: JSON.stringify(this.cleanPayload({ ...this.searchForm, question: userQuestion }))
+                    });
+                    if (!response.ok || !response.body) {
+                        throw new Error('流式接口连接失败');
+                    }
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        fullAnswer += this.parseSseChunk(decoder.decode(value, { stream: true }));
                         currentAnswer.answer = fullAnswer;
                         this.$nextTick(() => {
                             const chatBox = this.$refs.chatBox;
                             if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
                         });
-                    };
-
-                    eventSource.onerror = () => {
-                        eventSource.close();
-                        this.isStreaming = false;
-                        if (!fullAnswer) {
-                            currentAnswer.answer = '连接失败，请重试';
-                        }
-                    };
+                    }
                 } catch (e) {
-                    alert('发送失败：' + e.message);
+                    currentAnswer.answer = fullAnswer || ('发送失败：' + e.message);
+                } finally {
                     this.isStreaming = false;
                 }
             },
@@ -1224,151 +1281,49 @@
                 const html = marked.parse(text);
                 return window.DOMPurify ? DOMPurify.sanitize(html) : html;
             },
-            async handleToggle(node) {
-                if (node.type !== 'FOLDER') return;
-
-                if (node.expanded) {
-                    node.expanded = false;
-                    return;
-                }
-
-                if (node.children) {
-                    node.expanded = true;
-                    return;
-                }
-
-                node.loading = true;
-                try {
-                    let res = await axios.get('/api/dingtalk/tree?parentId=' + node.key);
-                    node.children = res.data.data || [];
-                    node.expanded = true;
-                } catch(e) {
-                    console.error('加载子节点失败:', e);
-                } finally {
-                    node.loading = false;
-                }
+            async loadChunksBySelectedDoc() {
+                await this.loadChunks();
             },
-            updateSelection({ key, checked, parentSpaceId }) {
-                if (checked) {
-                    const node = this.findNodeByKey(this.docTree, key);
-                    if (!node || node.type === 'FOLDER') return;
-                    if (node && !this.selectedDocIds.some(item => item.docId === key)) {
-                        const finalSpaceId = parentSpaceId || this.kbSpaceId;
-                        this.selectedDocIds.push({
-                            docId: key,
-                            docName: node.title,
-                            docType: node.type,
-                            spaceId: finalSpaceId
-                        });
-                    }
-                } else {
-                    this.selectedDocIds = this.selectedDocIds.filter(item => item.docId !== key);
-                }
-            },
-            findNodeByKey(nodes, key) {
-                for (const node of nodes) {
-                    if (node.key === key) return node;
-                    if (node.children) {
-                        const found = this.findNodeByKey(node.children, key);
-                        if (found) return found;
-                    }
-                }
-                return null;
-            },
-            async syncDocs() {
-                if(!confirm('确认同步选中的 ' + this.selectedDocIds.length + ' 个文档？')) return;
-                const selectedDocs = [...this.selectedDocIds];
+            async loadChunks(doc) {
                 try {
                     this.loading = true;
-                    let res = await axios.post('/api/dingtalk/sync', {
-                        docs: selectedDocs.map(item => ({
-                            docId: item.docId,
-                            docName: item.docName,
-                            docType: item.docType,
-                            spaceId: item.spaceId
-                        }))
-                    });
-                    const data = res.data.data || {};
-                    const successIds = data.success || [];
-                    selectedDocs
-                        .filter(item => successIds.includes(item.docId))
-                        .forEach(item => this.addDocRecord(item.docName, '钉钉'));
-                    const failed = data.failed || [];
-                    let message = '同步完成，成功：' + (data.successCount || 0) + '，失败：' + (data.failCount || 0);
-                    if (failed.length) {
-                        message += '\n\n失败原因：\n' + failed.join('\n');
+                    if (doc) {
+                        this.chunkQuery.docId = doc.id;
+                        this.chunkQuery.kbId = doc.kbId || this.chunkQuery.kbId;
                     }
-                    alert(message);
-                    this.selectedDocIds = [];
-                    this.showDingTalkPanel = false;
-                    this.loadDocList();
-                    this.loadTree();
-                } catch(e) {
-                    alert('同步异常：' + e.message);
+                    const res = await axios.get('/api/rag/document/chunks', { params: this.cleanPayload(this.chunkQuery) });
+                    this.chunkList = this.unwrapData(res.data) || [];
+                    this.tab = 'chunk-list';
+                    history.pushState(null, '', '/chunks/list');
+                } catch (e) {
+                    alert('获取切片失败：' + e.message);
                 } finally {
                     this.loading = false;
                 }
             },
-            async loadTree() {
-                this.treeLoading = true;
-                this.treeError = '';
-                try {
-                    let res = await axios.get('/api/dingtalk/tree');
-                    this.docTree = res.data.data || [];
-                    this.kbSpaceId = res.data.spaceId || '';
-                } catch(e) {
-                    this.treeError = e.message || '加载失败，请检查钉钉配置';
-                } finally {
-                    this.treeLoading = false;
-                }
+            resetChunkQuery() {
+                this.chunkQuery = { kbId: '', docId: '', title: '', keyword: '' };
+                this.loadChunksBySelectedDoc();
+                this.selectedChunk = null;
             },
-            async saveChunkConfig() {
+            openChunkDetail(chunk) {
+                this.selectedChunk = chunk;
+                this.modalMode = 'chunk-detail';
+                this.modalTitle = '分片详情';
+            },
+            async deleteChunk(chunk) {
+                if (!confirm('确认删除分片「' + (chunk.title || chunk.id) + '」？该操作会同步删除向量数据。')) return;
                 try {
                     this.loading = true;
-                    let res = await axios.put('/api/doc/chunk-config', this.chunkConfig);
-                    alert(res.data.msg || '保存成功');
+                    const res = await axios.delete('/api/rag/document/chunks/' + chunk.id);
+                    if (this.isApiSuccess(res.data)) {
+                        await this.loadChunksBySelectedDoc();
+                        alert('删除成功');
+                    } else {
+                        alert(res.data?.respMessage || res.data?.msg || '删除失败');
+                    }
                 } catch (e) {
-                    alert('保存失败：' + e.message);
-                } finally {
-                    this.loading = false;
-                }
-            },
-            async saveVectorConfig() {
-                try {
-                    this.loading = true;
-                    let res = await axios.put('/api/doc/vector-config', this.vectorConfig);
-                    alert(res.data.msg || '保存成功');
-                } catch (e) {
-                    alert('保存失败：' + e.message);
-                } finally {
-                    this.loading = false;
-                }
-            },
-            async loadPermissions() {
-                try {
-                    let res = await axios.get('/api/doc/permissions');
-                    this.permissionList = res.data.data || [];
-                } catch (e) {
-                    console.error('获取权限列表失败：', e);
-                }
-            },
-            async savePermission() {
-                if (!this.permissionForm.documentId) {
-                    alert('请选择文档');
-                    return;
-                }
-                const subjectType = this.permissionForm.permissionScope === '指定角色' ? 'ROLE' : 'USER';
-                try {
-                    this.loading = true;
-                    let res = await axios.put('/api/doc/permissions', {
-                        ...this.permissionForm,
-                        subjectType
-                    });
-                    alert(res.data.msg || '保存成功');
-                    this.loadPermissions();
-                    this.loadDocList();
-                } catch (e) {
-                    alert('保存失败：' + e.message);
+                    alert('删除失败：' + e.message);
                 } finally {
                     this.loading = false;
                 }
@@ -1381,11 +1336,9 @@
                 try {
                     this.loading = true;
                     this.searchResult = null;
-                    let res = await axios.post('/api/doc/search-test', {
-                        ...this.searchForm,
-                        includeAnswer: this.searchIncludeAnswer
-                    });
-                    this.searchResult = res.data.data;
+                    const payload = this.cleanPayload(this.searchForm);
+                    let res = await axios.post('/api/rag/query/search', payload);
+                    this.searchResult = this.unwrapData(res.data);
                 } catch (e) {
                     alert('检索失败：' + e.message);
                 } finally {
@@ -1393,29 +1346,121 @@
                 }
             },
             goSearchWithDoc(doc) {
-                this.searchForm.documentId = doc.id;
+                this.searchForm.kbId = doc.kbId || '';
+                this.searchForm.projectCode = doc.projectCode || '';
+                this.searchForm.bizModule = doc.bizModule || '';
+                this.searchForm.docType = doc.fileType ? doc.fileType.toLowerCase() : '';
                 this.searchForm.question = '';
                 this.searchResult = null;
-                this.tab = 'doc-search-test';
-                history.pushState(null, '', '/documents/search-test');
+                this.tab = 'query-test';
+                history.pushState(null, '', '/query/test');
             },
             openDocDetail(doc) {
-                alert('文档：' + doc.name + '\n来源：' + doc.source + '\n状态：' + doc.status + '\n切片数：' + doc.chunkCount + '\n权限：' + doc.permissionScope);
+                alert(
+                    '文档：' + doc.name +
+                    '\n知识库：' + this.kbName(doc.kbId) +
+                    '\n状态：' + this.docStatusText(doc.status) +
+                    '\n切片数：' + doc.chunkCount +
+                    '\n项目：' + (doc.projectCode || '-') +
+                    '\n模块：' + (doc.bizModule || '-') +
+                    '\n文件URL：' + (doc.fileUrl || '-')
+                );
             },
-            async markDocStatus(doc, status) {
+            async rebuildVector(doc) {
+                if (!confirm('确认重建文档「' + doc.name + '」的向量？')) return;
                 try {
                     this.loading = true;
-                    let res = await axios.put('/api/doc/' + doc.id + '/status', { status });
-                    if (res.data.code === 200) {
+                    const res = await axios.post('/api/rag/document/' + doc.id + '/rebuild');
+                    if (this.isApiSuccess(res.data)) {
                         await this.loadDocList();
+                        alert('已提交重建任务');
                     } else {
-                        alert(res.data.msg || '更新失败');
+                        alert(res.data?.respMessage || res.data?.msg || '重建失败');
                     }
                 } catch (e) {
-                    alert('更新失败：' + e.message);
+                    alert('重建失败：' + e.message);
                 } finally {
                     this.loading = false;
                 }
+            },
+            async deleteDocument(doc) {
+                if (!confirm('确认删除文档「' + doc.name + '」？该操作会删除文档记录、切片和向量数据。')) return;
+                try {
+                    this.loading = true;
+                    const res = await axios.delete('/api/rag/document/' + doc.id);
+                    if (this.isApiSuccess(res.data)) {
+                        await this.loadDocList();
+                        if (String(this.chunkQuery.docId) === String(doc.id)) {
+                            this.chunkQuery.docId = '';
+                            this.chunkList = [];
+                            this.selectedChunk = null;
+                        }
+                        alert('删除成功');
+                    } else {
+                        alert(res.data?.respMessage || res.data?.msg || '删除失败');
+                    }
+                } catch (e) {
+                    alert('删除失败：' + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+            cleanPayload(payload) {
+                const data = { ...payload };
+                Object.keys(data).forEach(key => {
+                    if (data[key] === '' || data[key] === null || data[key] === undefined) delete data[key];
+                });
+                return data;
+            },
+            clearQueryChat() {
+                this.queryChatList = [];
+                this.queryQuestion = '';
+                this.queryStreaming = false;
+            },
+            async sendQueryStream() {
+                if (!this.queryQuestion.trim() || this.queryStreaming) return;
+                const question = this.queryQuestion.trim();
+                const item = { question, answer: '' };
+                this.queryChatList.push(item);
+                this.queryQuestion = '';
+                try {
+                    this.queryStreaming = true;
+                    const payload = this.cleanPayload({ ...this.searchForm, question, includeSources: true });
+                    const response = await fetch(this.apiPath('/api/rag/query/ask-stream'), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            app: this.ssoApp,
+                            Authorization: 'Bearer ' + this.token,
+                            ...this.ssoTestHeaders
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok || !response.body) {
+                        throw new Error('流式接口连接失败');
+                    }
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        item.answer += this.parseSseChunk(decoder.decode(value, { stream: true }));
+                        this.$nextTick(() => {
+                            const chatBox = this.$refs.queryChatBox;
+                            if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+                        });
+                    }
+                } catch (e) {
+                    item.answer = item.answer || ('问答失败：' + e.message);
+                } finally {
+                    this.queryStreaming = false;
+                }
+            },
+            parseSseChunk(text) {
+                return text.split(/\r?\n/)
+                    .map(line => line.startsWith('data:') ? line.slice(5).trimStart() : line)
+                    .filter(line => line && line !== '[DONE]')
+                    .join('');
             }
         }
     }).mount('#app');

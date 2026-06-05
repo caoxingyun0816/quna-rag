@@ -7,5 +7,8 @@ import lombok.Data;
  */
 @Data
 public class RagChunkListRequest {
+    private Long kbId;
     private Long docId;
+    private String title;
+    private String keyword;
 }

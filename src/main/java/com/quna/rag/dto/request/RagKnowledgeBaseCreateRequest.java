@@ -7,8 +7,10 @@ import lombok.Data;
  */
 @Data
 public class RagKnowledgeBaseCreateRequest {
+    private Long id;
     private String kbCode;
     private String kbName;
     private Integer kbType;
     private String description;
+    private Integer status;
 }
