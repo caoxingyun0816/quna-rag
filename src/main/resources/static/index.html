@@ -106,6 +106,7 @@
         .message-row{display:flex;margin-bottom:14px}
         .message-row.user{justify-content:flex-end}
         .message{max-width:74%;border:1px solid #dfe5ec;border-radius:6px;padding:12px 14px;line-height:1.65;background:#fff}
+        .message.plain{white-space:pre-wrap}
         .message-row.user .message{background:#e9f1ef;border-color:#d4e3df}
         .message.streaming:after{content:"";display:inline-block;width:7px;height:16px;margin-left:4px;background:#2f6f68;vertical-align:-3px;animation:blink 1s infinite}
         @keyframes blink{0%,45%{opacity:1}46%,100%{opacity:.15}}
@@ -544,7 +545,7 @@
                                     <div class="message">{{item.question}}</div>
                                 </div>
                                 <div class="message-row">
-                                    <div class="message" :class="{'streaming': index === queryChatList.length - 1 && queryStreaming}" v-html="renderMarkdown(item.answer)"></div>
+                                    <div class="message" :class="{'streaming': index === queryChatList.length - 1 && queryStreaming, plain: item.streaming}" v-html="renderAnswer(item)"></div>
                                 </div>
                             </div>
                             <div class="empty" v-if="queryChatList.length===0">暂无问答内容</div>
@@ -674,6 +675,8 @@
 
 <script>
     const { createApp } = Vue;
+    let streamIdSeq = 0;
+    const streamRuntime = new Map();
 
     createApp({
         data() {
@@ -757,6 +760,8 @@
                 queryQuestion: '',
                 queryChatList: [],
                 queryStreaming: false,
+                streamCharDelay: 35,
+                streamFirstMessageTimeout: 12000,
                 captchaX: 0,
                 captchaVerified: false,
                 captchaText: '拖动滑块完成验证',
@@ -1223,14 +1228,35 @@
                 if (!this.question.trim() || this.isStreaming) return;
 
                 const userQuestion = this.question;
-                this.list.push({ question: userQuestion, answer: '' });
+                this.list.push(this.createStreamItem(userQuestion));
                 this.question = '';
 
                 const currentAnswer = this.list[this.list.length - 1];
-                let fullAnswer = '';
 
                 try {
                     this.isStreaming = true;
+                    const controller = new AbortController();
+                    let streamTimer = 0;
+                    const resetStreamTimer = () => {
+                        window.clearTimeout(streamTimer);
+                        streamTimer = this.startStreamTimeout(currentAnswer, '发送中断：模型长时间没有继续返回内容，请稍后重试。', 'chatBox', () => {
+                            this.isStreaming = false;
+                            controller.abort();
+                        });
+                    };
+                    streamTimer = this.startStreamTimeout(currentAnswer, '发送超时：已完成检索，但模型暂未返回内容，请稍后重试。', 'chatBox', () => {
+                        this.isStreaming = false;
+                        controller.abort();
+                    });
+                    const parser = this.createSseParser(event => {
+                        if (event.name === 'message') {
+                            resetStreamTimer();
+                            this.queueStreamText(currentAnswer, event.data, 'chatBox');
+                        } else if (event.name === 'error') {
+                            window.clearTimeout(streamTimer);
+                            this.queueStreamText(currentAnswer, event.data || '流式返回异常', 'chatBox');
+                        }
+                    });
                     const response = await fetch(this.apiPath('/api/rag/query/ask-stream'), {
                         method: 'POST',
                         headers: {
@@ -1239,7 +1265,8 @@
                             Authorization: 'Bearer ' + this.token,
                             ...this.ssoTestHeaders
                         },
-                        body: JSON.stringify(this.cleanPayload({ ...this.searchForm, question: userQuestion }))
+                        body: JSON.stringify(this.cleanPayload({ ...this.searchForm, question: userQuestion })),
+                        signal: controller.signal
                     });
                     if (!response.ok || !response.body) {
                         throw new Error('流式接口连接失败');
@@ -1249,15 +1276,15 @@
                     while (true) {
                         const { value, done } = await reader.read();
                         if (done) break;
-                        fullAnswer += this.parseSseChunk(decoder.decode(value, { stream: true }));
-                        currentAnswer.answer = fullAnswer;
-                        this.$nextTick(() => {
-                            const chatBox = this.$refs.chatBox;
-                            if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
-                        });
+                        parser.push(decoder.decode(value, { stream: true }));
                     }
+                    parser.push(decoder.decode());
+                    parser.flush();
+                    window.clearTimeout(streamTimer);
+                    this.markStreamClosed(currentAnswer);
                 } catch (e) {
-                    currentAnswer.answer = fullAnswer || ('发送失败：' + e.message);
+                    currentAnswer.answer = currentAnswer.answer || ('发送失败：' + e.message);
+                    this.markStreamClosed(currentAnswer);
                 } finally {
                     this.isStreaming = false;
                 }
@@ -1280,6 +1307,17 @@
                 marked.setOptions({ breaks: true, gfm: true });
                 const html = marked.parse(text);
                 return window.DOMPurify ? DOMPurify.sanitize(html) : html;
+            },
+            renderAnswer(item) {
+                if (!item || !item.answer) return '';
+                if (item.streaming) {
+                    const escaped = item.answer
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+                    return escaped;
+                }
+                return this.renderMarkdown(item.answer);
             },
             async loadChunksBySelectedDoc() {
                 await this.loadChunks();
@@ -1420,11 +1458,33 @@
             async sendQueryStream() {
                 if (!this.queryQuestion.trim() || this.queryStreaming) return;
                 const question = this.queryQuestion.trim();
-                const item = { question, answer: '' };
+                const item = this.createStreamItem(question);
                 this.queryChatList.push(item);
                 this.queryQuestion = '';
                 try {
                     this.queryStreaming = true;
+                    const controller = new AbortController();
+                    let streamTimer = 0;
+                    const resetStreamTimer = () => {
+                        window.clearTimeout(streamTimer);
+                        streamTimer = this.startStreamTimeout(item, '问答中断：模型长时间没有继续返回内容，请稍后重试。', 'queryChatBox', () => {
+                            this.queryStreaming = false;
+                            controller.abort();
+                        });
+                    };
+                    streamTimer = this.startStreamTimeout(item, '问答超时：已完成检索，但模型暂未返回内容，请稍后重试。', 'queryChatBox', () => {
+                        this.queryStreaming = false;
+                        controller.abort();
+                    });
+                    const parser = this.createSseParser(event => {
+                        if (event.name === 'message') {
+                            resetStreamTimer();
+                            this.queueStreamText(item, event.data, 'queryChatBox');
+                        } else if (event.name === 'error') {
+                            window.clearTimeout(streamTimer);
+                            this.queueStreamText(item, event.data || '流式返回异常', 'queryChatBox');
+                        }
+                    });
                     const payload = this.cleanPayload({ ...this.searchForm, question, includeSources: true });
                     const response = await fetch(this.apiPath('/api/rag/query/ask-stream'), {
                         method: 'POST',
@@ -1434,7 +1494,8 @@
                             Authorization: 'Bearer ' + this.token,
                             ...this.ssoTestHeaders
                         },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify(payload),
+                        signal: controller.signal
                     });
                     if (!response.ok || !response.body) {
                         throw new Error('流式接口连接失败');
@@ -1444,23 +1505,133 @@
                     while (true) {
                         const { value, done } = await reader.read();
                         if (done) break;
-                        item.answer += this.parseSseChunk(decoder.decode(value, { stream: true }));
-                        this.$nextTick(() => {
-                            const chatBox = this.$refs.queryChatBox;
-                            if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
-                        });
+                        parser.push(decoder.decode(value, { stream: true }));
                     }
+                    parser.push(decoder.decode());
+                    parser.flush();
+                    window.clearTimeout(streamTimer);
+                    this.markStreamClosed(item);
                 } catch (e) {
                     item.answer = item.answer || ('问答失败：' + e.message);
+                    this.markStreamClosed(item);
                 } finally {
                     this.queryStreaming = false;
                 }
             },
-            parseSseChunk(text) {
-                return text.split(/\r?\n/)
-                    .map(line => line.startsWith('data:') ? line.slice(5).trimStart() : line)
-                    .filter(line => line && line !== '[DONE]')
-                    .join('');
+            createStreamItem(question) {
+                return {
+                    _streamId: 'stream-' + (++streamIdSeq),
+                    question,
+                    answer: '',
+                    streaming: true
+                };
+            },
+            getStreamState(item) {
+                let state = streamRuntime.get(item._streamId);
+                if (!state) {
+                    state = {
+                        pendingChars: [],
+                        timer: null,
+                        closed: false,
+                        chatBoxRef: ''
+                    };
+                    streamRuntime.set(item._streamId, state);
+                }
+                return state;
+            },
+            startStreamTimeout(item, message, chatBoxRef, onTimeout) {
+                return window.setTimeout(() => {
+                    const state = this.getStreamState(item);
+                    if (state.pendingChars.length === 0) {
+                        this.queueStreamText(item, item.answer ? '\n\n' + message : message, chatBoxRef);
+                        onTimeout();
+                    }
+                }, this.streamFirstMessageTimeout);
+            },
+            createSseParser(onEvent) {
+                let buffer = '';
+                let eventName = 'message';
+                let dataLines = [];
+                const dispatch = () => {
+                    if (!dataLines.length) {
+                        eventName = 'message';
+                        return;
+                    }
+                    const data = dataLines.join('\n');
+                    if (data !== '[DONE]') {
+                        onEvent({ name: eventName, data });
+                    }
+                    eventName = 'message';
+                    dataLines = [];
+                };
+                const parseLine = (line) => {
+                    if (line.endsWith('\r')) line = line.slice(0, -1);
+                    if (line === '') {
+                        dispatch();
+                        return;
+                    }
+                    if (line.startsWith(':')) return;
+                    const splitIndex = line.indexOf(':');
+                    const field = splitIndex === -1 ? line : line.slice(0, splitIndex);
+                    let value = splitIndex === -1 ? '' : line.slice(splitIndex + 1);
+                    if (value.startsWith(' ')) value = value.slice(1);
+                    if (field === 'event') {
+                        eventName = value || 'message';
+                    } else if (field === 'data') {
+                        dataLines.push(value);
+                    }
+                };
+                return {
+                    push(text) {
+                        if (!text) return;
+                        buffer += text;
+                        const lines = buffer.split(/\r?\n/);
+                        buffer = lines.pop() || '';
+                        lines.forEach(parseLine);
+                    },
+                    flush() {
+                        if (buffer) {
+                            parseLine(buffer);
+                            buffer = '';
+                        }
+                        dispatch();
+                    }
+                };
+            },
+            queueStreamText(item, text, chatBoxRef) {
+                if (!text) return;
+                const state = this.getStreamState(item);
+                state.chatBoxRef = chatBoxRef;
+                state.pendingChars.push(...Array.from(text));
+                if (!state.timer) {
+                    state.timer = window.setInterval(() => this.typeNextStreamChar(item), this.streamCharDelay);
+                }
+            },
+            typeNextStreamChar(item) {
+                const state = this.getStreamState(item);
+                const nextChar = state.pendingChars.shift();
+                if (nextChar === undefined) {
+                    window.clearInterval(state.timer);
+                    state.timer = null;
+                    if (state.closed) {
+                        item.streaming = false;
+                        streamRuntime.delete(item._streamId);
+                    }
+                    return;
+                }
+                item.answer += nextChar;
+                this.$nextTick(() => {
+                    const chatBox = this.$refs[state.chatBoxRef];
+                    if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+                });
+            },
+            markStreamClosed(item) {
+                const state = this.getStreamState(item);
+                state.closed = true;
+                if (!state.timer && state.pendingChars.length === 0) {
+                    item.streaming = false;
+                    streamRuntime.delete(item._streamId);
+                }
             }
         }
     }).mount('#app');
